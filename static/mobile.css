@@ -1,0 +1,348 @@
+/* --- MOBILE STYLES (Max-width: 900px) --- */
+
+.mobile-menu-btn {
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 26px;
+    height: 20px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 2001;
+    padding: 0;
+}
+
+.hamburger-line {
+    width: 100%;
+    height: 2px;
+    background-color: #fff;
+    border-radius: 10px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mobile-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: var(--bg-primary);
+    background: linear-gradient(135deg, rgba(10, 12, 16, 0.98) 0%, rgba(18, 21, 26, 0.98) 100%);
+    backdrop-filter: blur(20px);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.mobile-menu.active {
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: all !important;
+}
+
+.mobile-menu-header {
+    display: none !important; /* Hide redundant header inside mobile menu */
+}
+
+@media (max-width: 900px) {
+    /* Layout Overrides */
+    .app-layout {
+        height: 100dvh; /* Dynamic viewport height for mobile */
+    }
+
+    .topbar {
+        padding: 0 20px;
+        height: 70px;
+        position: relative; /* Keeps it in the flex column */
+        background: rgba(10, 12, 16, 0.8);
+        backdrop-filter: blur(15px);
+    }
+
+    .pill-logo {
+        left: 20px;
+    }
+
+    .dx-logo {
+        font-size: 1.8rem;
+    }
+
+    .topbar-right {
+        display: none; /* Hide server select on mobile topbar for space, or reposition */
+    }
+
+    .desktop-only { display: none !important; }
+    .mobile-menu-btn { display: flex; position: absolute; right: 20px; top: 25px; }
+
+    /* Main Content Area */
+    .main-content {
+        padding: 0;
+    }
+
+    .content-header {
+        padding: 25px 20px 15px 20px;
+    }
+
+    .page-title {
+        font-size: 1.8rem;
+        text-align: center;
+    }
+
+    .content-body {
+        padding: 0 15px 30px 15px;
+    }
+
+    /* Glass Panels */
+    .glass-panel {
+        padding: 20px;
+        border-radius: 20px;
+        margin-bottom: 15px;
+    }
+
+    .glass-panel h2 {
+        font-size: 1.15rem;
+        margin-bottom: 20px;
+        justify-content: center;
+    }
+
+    /* Connection Info */
+    #connectionInfoCard {
+        flex-direction: column;
+        align-items: stretch !important;
+        text-align: center;
+        gap: 15px;
+    }
+
+    #connectionInfoCard > div:nth-child(2) {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .ip-display {
+        font-size: 0.95rem;
+        word-break: break-all;
+        width: 100%;
+        text-align: center;
+    }
+
+    .copy-btn {
+        width: 100%;
+    }
+
+    /* Button Groups */
+    .btn-group {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .action-btn {
+        width: 100%;
+        padding: 14px;
+        font-size: 0.9rem;
+    }
+
+    /* Status Rings */
+    .rings-wrapper {
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+
+    .status-ring {
+        padding: 15px 10px;
+        border-radius: 16px;
+    }
+
+    .circular-chart {
+        width: 100px;
+        height: 100px;
+    }
+
+    .circle-inner {
+        width: 86px;
+        height: 86px;
+    }
+
+    .percent-text {
+        font-size: 1.3rem;
+    }
+
+    .ring-label {
+        font-size: 0.85rem;
+    }
+
+    /* Terminal & Console */
+    .terminal-log {
+        height: 300px;
+        font-size: 0.85rem;
+        padding: 15px;
+    }
+
+    .console-input-wrapper {
+        padding: 12px 15px;
+    }
+
+    .console-input {
+        font-size: 0.9rem;
+    }
+
+    /* File Explorer */
+    .file-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+        text-align: center;
+    }
+
+    .file-header > div:last-child {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .file-header .action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .file-table th:nth-child(2), 
+    .file-table td:nth-child(2),
+    .file-table th:nth-child(3),
+    .file-table td:nth-child(3) {
+        display: none; /* Hide Size and Date on mobile */
+    }
+
+    .file-table th, .file-table td {
+        padding: 12px 10px;
+    }
+
+    .file-row td {
+        font-size: 0.9rem;
+    }
+
+    .editor-textarea {
+        height: 400px;
+    }
+
+    /* Installer */
+    .software-card-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .software-card {
+        padding: 20px;
+    }
+
+    .marketplace-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .version-header-container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .version-header-left {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .version-search-wrapper {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Player Management */
+    .player-main {
+        padding: 12px 15px;
+    }
+
+    .player-avatar {
+        width: 40px;
+        height: 40px;
+    }
+
+    .player-name {
+        font-size: 1rem;
+    }
+
+    .player-actions {
+        flex-wrap: wrap;
+    }
+
+    .player-actions .action-btn {
+        flex: 1 1 calc(50% - 6px);
+        padding: 10px;
+        font-size: 0.8rem;
+    }
+
+    /* Mobile Menu List */
+    .mobile-menu-list {
+        list-style: none;
+        padding: 0;
+        width: 100%;
+        max-width: 320px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .mobile-menu-list a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 16px 20px;
+        border-radius: 16px;
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .mobile-menu-list a:hover, 
+    .mobile-menu-list a.is-active {
+        background: var(--accent-color);
+        color: #000;
+        border-color: var(--accent-color);
+        box-shadow: 0 8px 25px rgba(0, 255, 127, 0.3);
+        transform: translateY(-2px);
+    }
+    
+    .mobile-menu-list a.is-active i {
+        color: #000 !important;
+    }
+
+    /* Settings Tab */
+    #tab-settings .glass-panel > div:first-of-type {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* Worlds Tab responsive buttons */
+    .responsive-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 20px;
+    }
+    
+    .responsive-btn-group {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+    }
+}
