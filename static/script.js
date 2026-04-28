@@ -883,6 +883,9 @@ function createPlayerCard(p, isOnline) {
                 <button class="action-btn stop" onclick="apiCall('/api/command', {command: 'ban ${p.name}'})">
                     <svg style="width:14px;height:14px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Ban
                 </button>
+                <button class="action-btn neutral" onclick="apiCall('/api/command', {command: 'pardon ${p.name}'})">
+                    <svg style="width:14px;height:14px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg> Unban
+                </button>
                 <button class="action-btn restart" onclick="apiCall('/api/command', {command: 'op ${p.name}'})">
                     <svg style="width:14px;height:14px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Op
                 </button>

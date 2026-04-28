@@ -403,6 +403,17 @@ body {
     box-shadow: 0 0 20px rgba(0, 191, 255, 0.4);
 }
 
+.action-btn.neutral {
+    background: rgba(160, 171, 184, 0.1);
+    border: 1px solid rgba(160, 171, 184, 0.3);
+    color: var(--text-secondary);
+}
+.action-btn.neutral:hover {
+    background: var(--text-secondary);
+    color: #000;
+    box-shadow: 0 0 20px rgba(160, 171, 184, 0.4);
+}
+
 /* --- DASHBOARD RINGS --- */
 .status-panel {
     background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
