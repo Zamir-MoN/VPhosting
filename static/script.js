@@ -803,6 +803,15 @@ function toggleMobileMenu() {
     }
 }
 
+window.addEventListener("load", () => {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        setTimeout(() => {
+            gsap.to(splash, { opacity: 0, duration: 0.6, ease: "power2.inOut", onComplete: () => splash.style.display = 'none' });
+        }, 800);
+    }
+});
+
 document.addEventListener("DOMContentLoaded", () => {
     initIpDisplay();
     checkStatus();
