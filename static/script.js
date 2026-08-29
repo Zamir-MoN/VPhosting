@@ -1421,12 +1421,21 @@ async function fetchPlayers() {
 function createPlayerCard(p, isOnline) {
     const card = document.createElement('div');
     card.className = `player-card ${!isOnline ? 'offline' : ''}`;
+    
+    const isOp = !!p.is_op;
+    const isBanned = !!p.is_banned;
+    const currentGm = (p.gamemode || 'survival').toLowerCase();
+
     card.innerHTML = `
         <div class="player-main" onclick="togglePlayerDetail(this)">
             <div class="player-info">
                 <img src="https://mc-heads.net/avatar/${p.name}/40" class="player-avatar" style="filter: ${isOnline ? 'none' : 'grayscale(1)'}">
                 <div>
-                    <div class="player-name">${p.name}</div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="player-name">${p.name}</span>
+                        ${isOp ? '<span class="player-badge-pill op"><i data-lucide="shield-check" style="width:10px;height:10px"></i> OP</span>' : ''}
+                        ${isBanned ? '<span class="player-badge-pill banned"><i data-lucide="slash" style="width:10px;height:10px"></i> BANNED</span>' : ''}
+                    </div>
                     <div class="player-status" style="color: ${isOnline ? '#00ff7f' : '#8892a0'}">${isOnline ? 'Online' : 'Offline'}</div>
                 </div>
             </div>
@@ -1438,20 +1447,14 @@ function createPlayerCard(p, isOnline) {
         </div>
         <div class="player-details">
             <div class="player-actions" style="margin-bottom: 15px; flex-wrap: wrap;">
-                <button class="action-btn stop" onclick="apiCall('/api/command', {command: 'kill ${p.name}'})">
+                <button class="action-btn" onclick="executePlayerAction(this, 'kill ${p.name}')">
                     <svg style="width:14px;height:14px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Kill
                 </button>
-                <button class="action-btn stop" onclick="apiCall('/api/command', {command: 'ban ${p.name}'})">
-                    <svg style="width:14px;height:14px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Ban
+                <button class="action-btn btn-ban ${isBanned ? 'is-active' : ''}" onclick="executePlayerAction(this, '${isBanned ? 'pardon' : 'ban'} ${p.name}')">
+                    <svg style="width:14px;height:14px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> ${isBanned ? 'Unban' : 'Ban'}
                 </button>
-                <button class="action-btn neutral" onclick="apiCall('/api/command', {command: 'pardon ${p.name}'})">
-                    <svg style="width:14px;height:14px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg> Unban
-                </button>
-                <button class="action-btn restart" onclick="apiCall('/api/command', {command: 'op ${p.name}'})">
-                    <svg style="width:14px;height:14px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Op
-                </button>
-                <button class="action-btn start" onclick="apiCall('/api/command', {command: 'deop ${p.name}'})">
-                     <svg style="width:14px;height:14px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="23" y2="14"/><line x1="23" y1="8" x2="17" y2="14"/></svg> De-Op
+                <button class="action-btn btn-op ${isOp ? 'is-active' : ''}" onclick="executePlayerAction(this, '${isOp ? 'deop' : 'op'} ${p.name}')">
+                    <svg style="width:14px;height:14px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> ${isOp ? '★ OP (Active)' : 'Grant OP'}
                 </button>
             </div>
             <div style="padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05);">
@@ -1459,14 +1462,27 @@ function createPlayerCard(p, isOnline) {
                     <svg style="width:12px;height:12px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg> Change Gamemode
                 </label>
                 <div class="player-actions">
-                    <button class="action-btn start" style="font-size: 0.7rem; padding: 5px 12px;" onclick="apiCall('/api/command', {command: 'gamemode survival ${p.name}'})">Survival</button>
-                    <button class="action-btn restart" style="font-size: 0.7rem; padding: 5px 12px;" onclick="apiCall('/api/command', {command: 'gamemode creative ${p.name}'})">Creative</button>
-                    <button class="action-btn stop" style="font-size: 0.7rem; padding: 5px 12px;" onclick="apiCall('/api/command', {command: 'gamemode spectator ${p.name}'})">Spectator</button>
+                    <button class="action-btn gm-btn ${currentGm === 'survival' ? 'is-active' : ''}" onclick="setPlayerGamemode(this, '${p.name}', 'survival')">Survival</button>
+                    <button class="action-btn gm-btn ${currentGm === 'creative' ? 'is-active' : ''}" onclick="setPlayerGamemode(this, '${p.name}', 'creative')">Creative</button>
+                    <button class="action-btn gm-btn ${currentGm === 'spectator' ? 'is-active' : ''}" onclick="setPlayerGamemode(this, '${p.name}', 'spectator')">Spectator</button>
                 </div>
             </div>
         </div>
     `;
     return card;
+}
+
+async function executePlayerAction(btn, command) {
+    await apiCall('/api/command', { command: command });
+    setTimeout(fetchPlayers, 600);
+}
+
+async function setPlayerGamemode(btn, playerName, gm) {
+    const parent = btn.parentElement;
+    parent.querySelectorAll('.gm-btn').forEach(b => b.classList.remove('is-active'));
+    btn.classList.add('is-active');
+    await apiCall('/api/command', { command: `gamemode ${gm} ${playerName}` });
+    setTimeout(fetchPlayers, 600);
 }
 
 function togglePlayerDetail(element) {

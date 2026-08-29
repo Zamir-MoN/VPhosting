@@ -271,7 +271,38 @@ def get_stats():
                 all_players = [entry['name'] for entry in cache_data]
         except: pass
 
-    # Read max-players from server.properties if available, else default to 50
+    # Read ops list
+    op_names = set()
+    ops_path = os.path.join(MC_DIR, "ops.json")
+    if os.path.exists(ops_path):
+        try:
+            with open(ops_path, "r", encoding="utf-8", errors="ignore") as f:
+                op_data = json.load(f)
+                for op in op_data:
+                    if isinstance(op, dict) and "name" in op:
+                        op_names.add(op["name"].lower())
+                    elif isinstance(op, str):
+                        op_names.add(op.lower())
+        except:
+            pass
+
+    # Read banned players list
+    banned_names = set()
+    banned_path = os.path.join(MC_DIR, "banned-players.json")
+    if os.path.exists(banned_path):
+        try:
+            with open(banned_path, "r", encoding="utf-8", errors="ignore") as f:
+                ban_data = json.load(f)
+                for b in ban_data:
+                    if isinstance(b, dict) and "name" in b:
+                        banned_names.add(b["name"].lower())
+                    elif isinstance(b, str):
+                        banned_names.add(b.lower())
+        except:
+            pass
+
+    # Read default gamemode from server.properties
+    default_gamemode = "survival"
     max_players = 50
     props_path = os.path.join(MC_DIR, "server.properties")
     if os.path.exists(props_path):
@@ -280,8 +311,30 @@ def get_stats():
                 for line in f:
                     if line.startswith("max-players="):
                         max_players = int(line.split("=")[1].strip())
-                        break
+                    elif line.startswith("gamemode="):
+                        default_gamemode = line.split("=")[1].strip().lower()
         except: pass
+
+    # Build rich player objects
+    rich_online_players = []
+    for name in online_players:
+        rich_online_players.append({
+            "name": name,
+            "status": "online",
+            "is_op": name.lower() in op_names,
+            "is_banned": name.lower() in banned_names,
+            "gamemode": default_gamemode
+        })
+
+    rich_all_players = []
+    for name in all_players:
+        rich_all_players.append({
+            "name": name,
+            "status": "online" if name in online_players else "offline",
+            "is_op": name.lower() in op_names,
+            "is_banned": name.lower() in banned_names,
+            "gamemode": default_gamemode
+        })
 
     return {
         "status": "online" if is_running else "offline",
@@ -296,8 +349,8 @@ def get_stats():
         "max_players": max_players,
         "backup_countdown": int(remaining),
         "backup_percent": backup_percent,
-        "online_players": [{"name": n, "status": "online"} for n in online_players],
-        "all_players": all_players
+        "online_players": rich_online_players,
+        "all_players": rich_all_players
     }
 
 @app.get("/api/backup/manual")

@@ -1242,12 +1242,77 @@ body {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .player-actions .action-btn {
     font-size: 0.75rem;
     padding: 7px 14px;
     border-radius: 10px;
+    opacity: 0.65;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e0e0e0;
+    box-shadow: none;
+    transition: all 0.2s ease;
+}
+
+.player-actions .action-btn:hover {
+    opacity: 1;
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Active OP Button Glow */
+.player-actions .action-btn.btn-op.is-active {
+    opacity: 1 !important;
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    color: #fff !important;
+    border: 1px solid #c084fc !important;
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.6) !important;
+}
+
+/* Active Banned Button Glow */
+.player-actions .action-btn.btn-ban.is-active {
+    opacity: 1 !important;
+    background: linear-gradient(135deg, #dc2626, #ef4444) !important;
+    color: #fff !important;
+    border: 1px solid #f87171 !important;
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.6) !important;
+}
+
+/* Active Gamemode Buttons Glow */
+.player-actions .action-btn.gm-btn.is-active {
+    opacity: 1 !important;
+    background: var(--primary) !important;
+    color: #000 !important;
+    border: 1px solid var(--primary) !important;
+    box-shadow: 0 0 16px var(--primary-glow) !important;
+    font-weight: 900;
+}
+
+.player-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.player-badge-pill.op {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+.player-badge-pill.banned {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
 .no-players {
