@@ -476,9 +476,15 @@ async function apiCall(endpoint, body = null) {
             options.body = JSON.stringify(body);
         }
         const response = await fetch(endpoint, options);
-        const data = await response.json();
+        let data = {};
+        const responseText = await response.text();
+        try {
+            data = JSON.parse(responseText);
+        } catch (jsonErr) {
+            data = { status: 'error', message: response.ok ? responseText : `Server responded with ${response.status}: ${responseText || response.statusText}` };
+        }
         
-        if (data.status === 'success') {
+        if (response.ok && data.status === 'success') {
             if (endpoint !== '/api/start' && endpoint !== '/api/restart' && activeToast) {
                 activeToast.remove();
                 showToast(data.message || "Action completed", "success");
@@ -496,7 +502,7 @@ async function apiCall(endpoint, body = null) {
                 restartBtn.innerHTML = '<i data-lucide="refresh-cw" style="width:16px;height:16px;"></i> Restart';
                 lucide.createIcons();
             }
-            showToast(data.message, 'error');
+            showToast(data.message || "An unexpected error occurred", 'error');
             isWaitingForStart = false;
         }
     } catch (error) { 
