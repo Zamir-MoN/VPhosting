@@ -174,18 +174,21 @@ async function fetchStats() {
             }
             if (startBtn && !isWaitingForStart) {
                 startBtn.classList.remove('is-loading');
-                startBtn.disabled = false;
+                startBtn.disabled = true; // Server is already running
             }
             if (stopBtn) stopBtn.disabled = false;
-            if (restartBtn) restartBtn.disabled = false;
+            if (restartBtn && !isWaitingForStart) {
+                restartBtn.classList.remove('is-loading');
+                restartBtn.disabled = false;
+            }
         } else {
             if (globalStatusBadge && !isWaitingForStart) {
                 globalStatusBadge.classList.add('offline');
                 globalStatusText.innerText = "OFFLINE";
             }
             if (startBtn && !isWaitingForStart) startBtn.disabled = false;
-            if (stopBtn) stopBtn.disabled = false;
-            if (restartBtn) restartBtn.disabled = false;
+            if (stopBtn) stopBtn.disabled = true; // Disabled when offline
+            if (restartBtn && !isWaitingForStart) restartBtn.disabled = true; // Disabled when offline
         }
         
         // RAM
