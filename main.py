@@ -430,13 +430,21 @@ def start_server():
         if os.path.exists(log_path):
             open(log_path, 'w').close()
             
+        # Find bash executable full path
+        bash_bin = shutil.which("bash") or "/bin/bash"
+        tmux_bin = shutil.which("tmux") or "/usr/bin/tmux"
+        java_bin = shutil.which("java") or "/usr/bin/java"
+
         # Launch with tmux if installed, otherwise fallback to direct background process
-        if shutil.which("tmux"):
-            cmd = f"cd {MC_DIR} && bash start.sh"
-            subprocess.run(["tmux", "new-session", "-d", "-s", "mc_server", cmd], check=True)
+        if os.path.exists(tmux_bin):
+            cmd = f"cd {MC_DIR} && {bash_bin} start.sh"
+            subprocess.run([tmux_bin, "new-session", "-d", "-s", "mc_server", cmd], check=True)
         else:
             # Direct background process fallback
-            cmd = ["bash", "start.sh"] if os.path.exists(start_script) else ["java", "-Xms1G", "-Xmx2G", "-jar", "server.jar", "nogui"]
+            if os.path.exists(start_script) and os.path.exists(bash_bin):
+                cmd = [bash_bin, "start.sh"]
+            else:
+                cmd = [java_bin, "-Xms1G", "-Xmx2G", "-jar", "server.jar", "nogui"]
             log_file = open(log_path, "a")
             MC_PROCESS = subprocess.Popen(cmd, cwd=MC_DIR, stdout=log_file, stderr=log_file, stdin=subprocess.PIPE)
 
