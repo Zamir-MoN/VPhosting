@@ -271,7 +271,7 @@
                                 </div>
                             </div>
                             <div class="version-search-wrapper" style="position: relative; max-width: 320px; width: 100%;">
-                                <input type="text" id="pluginSearchInput" class="filter-input" placeholder="Search Spigot / Paper plugins..." style="width: 100%; padding-left: 38px;" onkeypress="if(event.key==='Enter') searchPlugins(this.value)">
+                                <input type="text" id="pluginSearchInput" class="filter-input" placeholder="Search plugins (e.g. DriveBackup, Essentials)..." style="width: 100%; padding-left: 38px;" oninput="debouncePluginSearch(this.value)">
                                 <i data-lucide="search" class="search-icon" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
                             </div>
                         </div>

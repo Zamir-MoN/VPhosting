@@ -723,53 +723,105 @@ def get_installed_plugins():
     return {"status": "success", "plugins": installed}
 
 @app.get("/api/plugins/search")
-async def search_plugins(q: str = "", limit: int = 24):
-    url = f"https://api.modrinth.com/v2/search?query={q}&facets=[[%22project_type:plugin%22]]&limit={limit}"
+async def search_plugins(q: str = "", limit: int = 30):
     headers = {"User-Agent": "ValqoreHosting/2.0"}
+    results = []
+    seen_ids = set()
+
+    # 1. Search Modrinth (with fallback query)
     try:
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=8) as res:
+        clean_q = urllib.parse.quote(q.strip())
+        modrinth_url = f"https://api.modrinth.com/v2/search?query={clean_q}&facets=[[%22project_type:plugin%22]]&limit={limit}" if clean_q else f"https://api.modrinth.com/v2/search?facets=[[%22project_type:plugin%22]]&limit={limit}"
+        req = urllib.request.Request(modrinth_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=6) as res:
             data = json.loads(res.read().decode('utf-8'))
-            hits = data.get("hits", [])
-            results = []
-            for hit in hits:
+            for hit in data.get("hits", []):
+                pid = str(hit.get("project_id"))
+                seen_ids.add(pid)
                 results.append({
-                    "id": hit.get("project_id"),
+                    "id": pid,
                     "slug": hit.get("slug"),
                     "title": hit.get("title"),
                     "description": hit.get("description"),
-                    "icon_url": hit.get("icon_url"),
+                    "icon_url": hit.get("icon_url") or "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f9e9.png",
                     "downloads": hit.get("downloads", 0),
                     "follows": hit.get("follows", 0),
-                    "author": hit.get("author"),
-                    "categories": hit.get("categories", []),
-                    "versions": hit.get("versions", [])
+                    "author": hit.get("author", "Community"),
+                    "source": "modrinth"
                 })
-            return {"status": "success", "hits": results}
     except Exception as e:
-        return {"status": "error", "message": f"Failed to search plugins: {str(e)}", "hits": []}
+        print(f"Modrinth search error: {e}")
+
+    # 2. Search Spiget (SpigotMC Database) as secondary provider
+    if q.strip():
+        try:
+            spiget_url = f"https://api.spiget.org/v2/search/resources/{urllib.parse.quote(q.strip())}?size=15&field=name"
+            req2 = urllib.request.Request(spiget_url, headers=headers)
+            with urllib.request.urlopen(req2, timeout=6) as res2:
+                spiget_data = json.loads(res2.read().decode('utf-8'))
+                for item in spiget_data:
+                    res_id = str(item.get("id"))
+                    if res_id not in seen_ids:
+                        icon = item.get("icon", {}).get("url")
+                        if icon and not icon.startswith("http"):
+                            icon = f"https://www.spigotmc.org/{icon}"
+                        results.append({
+                            "id": res_id,
+                            "slug": f"spiget-{res_id}",
+                            "title": item.get("name"),
+                            "description": item.get("tag", "SpigotMC Resource"),
+                            "icon_url": icon or "https://static.spigotmc.org/img/spigot.png",
+                            "downloads": item.get("downloads", 0),
+                            "follows": item.get("likes", 0),
+                            "author": "SpigotMC",
+                            "source": "spiget"
+                        })
+        except Exception as e:
+            print(f"Spiget search error: {e}")
+
+    return {"status": "success", "hits": results}
 
 @app.post("/api/plugins/install")
 async def install_plugin(request: Request):
     data = await request.json()
-    slug_or_id = data.get("id") or data.get("slug")
+    slug_or_id = str(data.get("id") or data.get("slug") or "")
+    source = data.get("source", "modrinth")
+
     if not slug_or_id:
         return {"status": "error", "message": "Plugin ID required."}
 
     plugins_dir = os.path.join(MC_DIR, "plugins")
     os.makedirs(plugins_dir, exist_ok=True)
-
-    # Fetch latest version from Modrinth
-    url = f"https://api.modrinth.com/v2/project/{slug_or_id}/version"
     headers = {"User-Agent": "ValqoreHosting/2.0"}
+
+    # Case A: Spiget Direct Download
+    if source == "spiget" or slug_or_id.startswith("spiget-"):
+        spiget_id = slug_or_id.replace("spiget-", "")
+        download_url = f"https://api.spiget.org/v2/resources/{spiget_id}/download"
+        dest_filename = f"plugin_{spiget_id}.jar"
+        dest_path = os.path.join(plugins_dir, dest_filename)
+        try:
+            dl_req = urllib.request.Request(download_url, headers=headers)
+            with urllib.request.urlopen(dl_req, timeout=25) as dl_res:
+                content_disposition = dl_res.headers.get("Content-Disposition", "")
+                if "filename=" in content_disposition:
+                    dest_filename = content_disposition.split("filename=")[1].replace('"', '').strip()
+                    dest_path = os.path.join(plugins_dir, dest_filename)
+                with open(dest_path, "wb") as out_f:
+                    shutil.copyfileobj(dl_res, out_f)
+            return {"status": "success", "message": f"'{dest_filename}' downloaded & applied to /plugins folder!", "filename": dest_filename}
+        except Exception as e:
+            return {"status": "error", "message": f"Spiget download error: {str(e)}"}
+
+    # Case B: Modrinth Download
+    url = f"https://api.modrinth.com/v2/project/{slug_or_id}/version"
     try:
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as res:
             versions = json.loads(res.read().decode('utf-8'))
             if not versions:
-                return {"status": "error", "message": "No download files available for this plugin."}
+                return {"status": "error", "message": "No versions available for download."}
             
-            # Find primary or first file
             version = versions[0]
             files = version.get("files", [])
             jar_file = next((f for f in files if f.get("primary")), files[0] if files else None)
@@ -780,7 +832,6 @@ async def install_plugin(request: Request):
             filename = jar_file.get("filename")
             dest_path = os.path.join(plugins_dir, filename)
 
-            # Download .jar directly into mc_server/plugins/
             dl_req = urllib.request.Request(download_url, headers=headers)
             with urllib.request.urlopen(dl_req, timeout=30) as dl_res, open(dest_path, "wb") as out_f:
                 shutil.copyfileobj(dl_res, out_f)

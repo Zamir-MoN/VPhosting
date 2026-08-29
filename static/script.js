@@ -1053,7 +1053,7 @@ async function loadPlugins(query = "") {
                             <span><i data-lucide="download" style="width:12px;height:12px"></i> ${downloads}</span>
                             <span><i data-lucide="heart" style="width:12px;height:12px"></i> ${plugin.follows || 0}</span>
                         </div>
-                        <button class="action-btn start" style="padding: 6px 14px; font-size: 0.76rem;" onclick="installPlugin('${plugin.id}', '${plugin.title.replace(/'/g, "\\'")}')">
+                        <button class="action-btn start" style="padding: 6px 14px; font-size: 0.76rem;" onclick="installPlugin('${plugin.id}', '${plugin.title.replace(/'/g, "\\'")}', '${plugin.source || 'modrinth'}')">
                             <i data-lucide="download" style="width:13px;height:13px"></i> Install
                         </button>
                     </div>
@@ -1062,7 +1062,7 @@ async function loadPlugins(query = "") {
             });
             lucide.createIcons();
         } else {
-            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><p style="color: #a0abb8;">No plugins found. Try a different search query.</p></div>';
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><p style="color: #a0abb8;">No plugins found for this query. Try a broader search keyword.</p></div>';
         }
         loadInstalledPluginsCount();
     } catch (e) {
@@ -1070,17 +1070,25 @@ async function loadPlugins(query = "") {
     }
 }
 
+let searchDebounceTimer = null;
+function debouncePluginSearch(query) {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+        loadPlugins(query);
+    }, 350);
+}
+
 async function searchPlugins(query) {
     loadPlugins(query);
 }
 
-async function installPlugin(id, title) {
+async function installPlugin(id, title, source = "modrinth") {
     const activeToast = showToast(`Downloading & applying ${title}...`, "loading");
     try {
         const res = await fetch('/api/plugins/install', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id })
+            body: JSON.stringify({ id: id, source: source })
         });
         const data = await res.json();
         if (activeToast) activeToast.remove();
