@@ -385,28 +385,55 @@ def start_server():
     try:
         subprocess.check_output(["tmux", "has-session", "-t", "mc_server"], stderr=subprocess.STDOUT)
         return {"status": "error", "message": "Server is already running."}
-    except subprocess.CalledProcessError:
+    except Exception:
+        pass
+
+    try:
         start_script = os.path.join(MC_DIR, "start.sh")
-        if not os.path.exists(start_script): return {"status": "error", "message": "No server installed."}
+        server_jar = os.path.join(MC_DIR, "server.jar")
         
+        # If server.jar exists but start.sh is missing, auto-create start.sh
+        if not os.path.exists(start_script) and os.path.exists(server_jar):
+            with open(start_script, "w") as f:
+                f.write("#!/bin/bash\njava -Xms1G -Xmx2G -jar server.jar nogui\n")
+            os.chmod(start_script, 0o755)
+
+        if not os.path.exists(start_script) and not os.path.exists(server_jar):
+            return {"status": "error", "message": "No Minecraft server installed! Please install one from the Installer tab."}
+        
+        # Accept EULA automatically if not present
+        eula_path = os.path.join(MC_DIR, "eula.txt")
+        if not os.path.exists(eula_path):
+            with open(eula_path, "w") as f:
+                f.write("eula=true\n")
+
         log_path = os.path.join(MC_DIR, "logs", "latest.log")
-        if os.path.exists(log_path): open(log_path, 'w').close()
+        os.makedirs(os.path.join(MC_DIR, "logs"), exist_ok=True)
+        if os.path.exists(log_path):
+            open(log_path, 'w').close()
             
-        subprocess.run(["tmux", "new-session", "-d", "-s", "mc_server", f"cd {MC_DIR} && bash start.sh"])
+        cmd = f"cd {MC_DIR} && bash start.sh"
+        subprocess.run(["tmux", "new-session", "-d", "-s", "mc_server", cmd], check=True)
         return {"status": "success", "message": "Server boot sequence initiated..."}
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to start server: {str(e)}"}
 
 @app.post("/api/stop")
 async def stop_server():
-    subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
-    subprocess.run(["killall", "java"], stderr=subprocess.DEVNULL)
-    return {"status": "success", "message": "Server forcefully stopped."}
+    try:
+        subprocess.run(["tmux", "send-keys", "-t", "mc_server", "stop", "ENTER"], stderr=subprocess.DEVNULL)
+        await asyncio.sleep(2)
+        subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
+        subprocess.run(["killall", "-9", "java"], stderr=subprocess.DEVNULL)
+        return {"status": "success", "message": "Server forcefully stopped."}
+    except Exception as e:
+        return {"status": "error", "message": f"Stop command error: {str(e)}"}
 
 @app.post("/api/restart")
 async def restart_server():
     await stop_server()
-    await asyncio.sleep(5)
-    start_server()
-    return {"status": "success", "message": "Server reboot initiated..."}
+    await asyncio.sleep(3)
+    return start_server()
 
 @app.post("/api/delete")
 async def delete_server():
