@@ -723,8 +723,8 @@ def get_installed_plugins():
     return {"status": "success", "plugins": installed}
 
 @app.get("/api/plugins/search")
-async def search_plugins(q: str = "", limit: int = 30):
-    headers = {"User-Agent": "ValqoreHosting/2.0"}
+def search_plugins(q: str = "", limit: int = 30):
+    headers = {"User-Agent": "ValqoreHosting/2.0 (admin@valqore.com)"}
     results = []
     seen_ids = set()
 
@@ -752,7 +752,7 @@ async def search_plugins(q: str = "", limit: int = 30):
     corrected_tokens = [typo_map.get(t, t) for t in tokens]
     corrected_str = " ".join(corrected_tokens)
 
-    # Search list ordered by priority: corrected phrase -> individual words -> raw phrase
+    # Search list ordered by priority
     search_terms = []
     if corrected_str and corrected_str != clean_raw.lower():
         search_terms.append(corrected_str)
@@ -761,16 +761,20 @@ async def search_plugins(q: str = "", limit: int = 30):
         if len(t) >= 3 and t not in search_terms:
             search_terms.append(t)
 
-    # 1. Search Modrinth across candidate terms
+    # 1. Search Modrinth
     for term in search_terms[:4]:
         if len(results) >= limit:
             break
         try:
-            clean_term = urllib.parse.quote(term.strip())
-            modrinth_url = f"https://api.modrinth.com/v2/search?query={clean_term}&limit=20" if term.strip() else "https://api.modrinth.com/v2/search?facets=[[%22project_type:plugin%22]]&limit=24"
-            req = urllib.request.Request(modrinth_url, headers=headers)
-            with urllib.request.urlopen(req, timeout=5) as res:
-                data = json.loads(res.read().decode('utf-8'))
+            params = {"limit": 20}
+            if term.strip():
+                params["query"] = term.strip()
+            else:
+                params["facets"] = '[["project_type:plugin"]]'
+                
+            r = requests.get("https://api.modrinth.com/v2/search", params=params, headers=headers, timeout=6)
+            if r.status_code == 200:
+                data = r.json()
                 for hit in data.get("hits", []):
                     pid = str(hit.get("project_id"))
                     if pid not in seen_ids:
@@ -787,17 +791,16 @@ async def search_plugins(q: str = "", limit: int = 30):
                             "source": "modrinth"
                         })
         except Exception as e:
-            print(f"Modrinth query error for '{term}': {e}")
+            print(f"Modrinth request error for '{term}': {e}")
 
-    # 2. Search Spiget (SpigotMC Database) for extra compatibility
+    # 2. Search Spiget (SpigotMC Database)
     for term in search_terms[:2]:
         if not term or len(results) >= limit:
             continue
         try:
-            spiget_url = f"https://api.spiget.org/v2/search/resources/{urllib.parse.quote(term)}?size=15&field=name"
-            req2 = urllib.request.Request(spiget_url, headers=headers)
-            with urllib.request.urlopen(req2, timeout=5) as res2:
-                spiget_data = json.loads(res2.read().decode('utf-8'))
+            r2 = requests.get(f"https://api.spiget.org/v2/search/resources/{term.strip()}", params={"size": 15, "field": "name"}, headers=headers, timeout=6)
+            if r2.status_code == 200:
+                spiget_data = r2.json()
                 for item in spiget_data:
                     res_id = str(item.get("id"))
                     if res_id not in seen_ids:
@@ -817,15 +820,14 @@ async def search_plugins(q: str = "", limit: int = 30):
                             "source": "spiget"
                         })
         except Exception as e:
-            print(f"Spiget query error for '{term}': {e}")
+            print(f"Spiget request error for '{term}': {e}")
 
-    # Default fallback: If query produced 0 hits, fetch trending top plugins
+    # Fallback if 0 results
     if not results:
         try:
-            fallback_url = "https://api.modrinth.com/v2/search?limit=24"
-            req3 = urllib.request.Request(fallback_url, headers=headers)
-            with urllib.request.urlopen(req3, timeout=5) as res3:
-                data3 = json.loads(res3.read().decode('utf-8'))
+            r3 = requests.get("https://api.modrinth.com/v2/search", params={"limit": 24}, headers=headers, timeout=6)
+            if r3.status_code == 200:
+                data3 = r3.json()
                 for hit in data3.get("hits", []):
                     pid = str(hit.get("project_id"))
                     if pid not in seen_ids:
@@ -866,42 +868,44 @@ async def install_plugin(request: Request):
         dest_filename = f"plugin_{spiget_id}.jar"
         dest_path = os.path.join(plugins_dir, dest_filename)
         try:
-            dl_req = urllib.request.Request(download_url, headers=headers)
-            with urllib.request.urlopen(dl_req, timeout=25) as dl_res:
-                content_disposition = dl_res.headers.get("Content-Disposition", "")
-                if "filename=" in content_disposition:
-                    dest_filename = content_disposition.split("filename=")[1].replace('"', '').strip()
-                    dest_path = os.path.join(plugins_dir, dest_filename)
-                with open(dest_path, "wb") as out_f:
-                    shutil.copyfileobj(dl_res, out_f)
+            r = requests.get(download_url, headers=headers, stream=True, timeout=25)
+            if "filename=" in r.headers.get("Content-Disposition", ""):
+                dest_filename = r.headers["Content-Disposition"].split("filename=")[1].replace('"', '').strip()
+                dest_path = os.path.join(plugins_dir, dest_filename)
+            with open(dest_path, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
             return {"status": "success", "message": f"'{dest_filename}' downloaded & applied to /plugins folder!", "filename": dest_filename}
         except Exception as e:
             return {"status": "error", "message": f"Spiget download error: {str(e)}"}
 
     # Case B: Modrinth Download
-    url = f"https://api.modrinth.com/v2/project/{slug_or_id}/version"
     try:
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as res:
-            versions = json.loads(res.read().decode('utf-8'))
-            if not versions:
-                return {"status": "error", "message": "No versions available for download."}
-            
-            version = versions[0]
-            files = version.get("files", [])
-            jar_file = next((f for f in files if f.get("primary")), files[0] if files else None)
-            if not jar_file:
-                return {"status": "error", "message": "Could not find compatible .jar file."}
-            
-            download_url = jar_file.get("url")
-            filename = jar_file.get("filename")
-            dest_path = os.path.join(plugins_dir, filename)
+        url = f"https://api.modrinth.com/v2/project/{slug_or_id}/version"
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code != 200:
+            return {"status": "error", "message": "Plugin version not found."}
+        
+        versions = r.json()
+        if not versions:
+            return {"status": "error", "message": "No versions available for download."}
+        
+        version = versions[0]
+        files = version.get("files", [])
+        jar_file = next((f for f in files if f.get("primary")), files[0] if files else None)
+        if not jar_file:
+            return {"status": "error", "message": "Could not find compatible .jar file."}
+        
+        download_url = jar_file.get("url")
+        filename = jar_file.get("filename")
+        dest_path = os.path.join(plugins_dir, filename)
 
-            dl_req = urllib.request.Request(download_url, headers=headers)
-            with urllib.request.urlopen(dl_req, timeout=30) as dl_res, open(dest_path, "wb") as out_f:
-                shutil.copyfileobj(dl_res, out_f)
+        dl_r = requests.get(download_url, headers=headers, stream=True, timeout=30)
+        with open(dest_path, "wb") as f:
+            for chunk in dl_r.iter_content(chunk_size=8192):
+                f.write(chunk)
 
-            return {"status": "success", "message": f"'{filename}' downloaded & applied to plugins folder successfully!", "filename": filename}
+        return {"status": "success", "message": f"'{filename}' downloaded & applied to plugins folder successfully!", "filename": filename}
     except Exception as e:
         return {"status": "error", "message": f"Download failed: {str(e)}"}
 
