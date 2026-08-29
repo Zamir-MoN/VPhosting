@@ -818,31 +818,30 @@ window.addEventListener("load", () => {
     const splash = document.getElementById('splash-screen');
     if (splash) {
         gsap.timeline()
-            .to('.splash-ring', { scale: 1.15, duration: 0.4, yoyo: true, repeat: 1 })
+            .to('.splash-icon-wrapper', { scale: 1.08, duration: 0.5, ease: "power2.out" })
             .to(splash, { 
                 opacity: 0, 
-                duration: 0.6, 
-                ease: "power3.inOut", 
+                duration: 0.5, 
+                ease: "power2.inOut", 
                 onComplete: () => {
                     splash.style.display = 'none';
                     // Stagger Entrance for UI elements
-                    gsap.from('.topbar', { y: -50, opacity: 0, duration: 0.6, ease: "power3.out" });
-                    gsap.from('.page-title', { x: -30, opacity: 0, duration: 0.5, delay: 0.2, ease: "power2.out" });
-                    gsap.from('.glass-panel', { 
-                        y: 30, 
-                        opacity: 0, 
-                        duration: 0.6, 
-                        stagger: 0.1, 
-                        delay: 0.25, 
-                        ease: "power3.out" 
-                    });
-                    gsap.from('.status-ring', { 
-                        scale: 0.9, 
+                    gsap.from('.topbar', { y: -40, opacity: 0, duration: 0.5, ease: "power3.out" });
+                    gsap.from('.content-header', { y: -20, opacity: 0, duration: 0.5, delay: 0.15, ease: "power2.out" });
+                    gsap.from('.metric-card', { 
+                        y: 20, 
                         opacity: 0, 
                         duration: 0.5, 
                         stagger: 0.08, 
-                        delay: 0.4, 
-                        ease: "back.out(1.5)" 
+                        delay: 0.2, 
+                        ease: "power3.out" 
+                    });
+                    gsap.from('.power-panel', { 
+                        y: 20, 
+                        opacity: 0, 
+                        duration: 0.5, 
+                        delay: 0.35, 
+                        ease: "power3.out" 
                     });
                 }
             });
