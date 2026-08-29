@@ -898,45 +898,110 @@ body {
 .player-list-container {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
 }
 
 .player-card {
     background: rgba(24, 24, 30, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 14px;
-    padding: 12px 18px;
+    border-radius: 16px;
+    padding: 0;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    transition: all 0.2s ease;
+    flex-direction: column;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
 }
 
 .player-card:hover {
-    border-color: var(--primary);
+    border-color: rgba(230, 255, 0, 0.3);
+    background: rgba(28, 28, 36, 0.7);
 }
 
 .player-main {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s ease;
+}
+
+.player-main:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
 }
 
 .player-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .player-name {
     font-size: 0.95rem;
-    font-weight: 700;
+    font-weight: 800;
     color: #fff;
+    letter-spacing: 0.3px;
+}
+
+.player-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
+}
+
+.player-main:hover .expand-btn {
+    color: #fff;
+}
+
+.player-card.expanded .expand-btn {
+    transform: rotate(180deg);
+    color: var(--primary);
+}
+
+.player-details {
+    max-height: 0;
+    opacity: 0;
+    padding: 0 20px;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, padding 0.3s ease;
+    border-top: 1px solid transparent;
+}
+
+.player-card.expanded .player-details {
+    max-height: 350px;
+    opacity: 1;
+    padding: 16px 20px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(14, 14, 18, 0.4);
 }
 
 .player-actions {
     display: flex;
-    gap: 6px;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.player-actions .action-btn {
+    font-size: 0.75rem;
+    padding: 7px 14px;
+    border-radius: 10px;
 }
 
 .no-players {
