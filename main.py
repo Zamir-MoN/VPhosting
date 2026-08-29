@@ -444,6 +444,7 @@ def start_server():
             optimized_sh = f"""#!/bin/bash
 java -Xms{alloc_mb}M -Xmx{alloc_mb}M \\
   --add-modules=jdk.incubator.vector \\
+  -Djava.net.preferIPv4Stack=true \\
   -XX:+UseG1GC \\
   -XX:+ParallelRefProcEnabled \\
   -XX:MaxGCPauseMillis=200 \\
