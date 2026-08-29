@@ -55,6 +55,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # Configuration
+MC_PROCESS = None
 RCON_HOST = "127.0.0.1"
 RCON_PORT = 25575
 RCON_PASS = "your_rcon_password"

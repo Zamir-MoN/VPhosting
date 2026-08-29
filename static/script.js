@@ -242,29 +242,34 @@ async function fetchStats() {
         }
         
         // RAM
+        const ramPercent = data.ram_percent ?? 0;
         const ramBar = document.getElementById('bar-ram');
-        if (ramBar) ramBar.style.width = `${data.ram_percent}%`;
+        if (ramBar) ramBar.style.width = `${ramPercent}%`;
         const textRam = document.getElementById('text-ram');
-        if (textRam) textRam.innerText = `${data.ram_percent}%`;
+        if (textRam) textRam.innerText = `${ramPercent}%`;
         const subRam = document.getElementById('sub-ram');
-        const usedMb = data.ram_used_mb || 0;
-        const totalMb = data.ram_allocated_mb || data.ram_total_mb || 2048;
+        const usedMb = data.ram_used_mb ?? 0;
+        const totalMb = data.ram_allocated_mb ?? data.ram_total_mb ?? 2048;
         if (subRam) subRam.innerText = `${usedMb} / ${totalMb} MB`;
         
         // CPU
+        const cpuPercent = data.cpu_percent ?? 0;
         const cpuBar = document.getElementById('bar-cpu');
-        if (cpuBar) cpuBar.style.width = `${data.cpu_percent}%`;
+        if (cpuBar) cpuBar.style.width = `${cpuPercent}%`;
         const textCpu = document.getElementById('text-cpu');
-        if (textCpu) textCpu.innerText = `${data.cpu_percent}%`;
+        if (textCpu) textCpu.innerText = `${cpuPercent}%`;
         const subCpu = document.getElementById('sub-cpu');
-        if (subCpu && data.cpu_cores) subCpu.innerText = `${data.cpu_cores} Cores Active`;
+        const cpuCores = data.cpu_cores ?? 2;
+        if (subCpu) subCpu.innerText = `${cpuCores} Cores Active`;
         
         // Online Players
-        const playerPercent = Math.min(100, (data.players_online / data.max_players) * 100);
+        const playersOnline = data.players_online ?? 0;
+        const maxPlayers = data.max_players ?? 50;
+        const playerPercent = Math.min(100, (playersOnline / maxPlayers) * 100);
         const slotBar = document.getElementById('bar-slot');
         if (slotBar) slotBar.style.width = `${playerPercent}%`;
         const textSlot = document.getElementById('text-slot');
-        if (textSlot) textSlot.innerText = `${data.players_online}/${data.max_players}`;
+        if (textSlot) textSlot.innerText = `${playersOnline}/${maxPlayers}`;
 
         // Server Ping (Latency)
         const textPing = document.getElementById('text-ping');
