@@ -316,27 +316,36 @@ async function fetchConsoleLogs() {
                 }
             }
             
-            // Check if server boot completed
-            if (isWaitingForStart && (data.log.includes('Done (') || data.log.includes('For help, type "help"') || data.log.includes('Timings Reset'))) {
-                if (startLoadingToast) {
-                    startLoadingToast.remove();
-                    startLoadingToast = null;
-                }
-                showToast("⚡ Minecraft Server is fully Online & Ready to Play!", "success");
-                isWaitingForStart = false;
-                
-                const startBtn = document.querySelector('button[onclick="apiCall(\'/api/start\')"]');
-                if (startBtn) {
-                    startBtn.classList.remove('is-loading');
-                    startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Start';
-                }
-                const restartBtn = document.querySelector('button[onclick="apiCall(\'/api/restart\')"]');
-                if (restartBtn) {
-                    restartBtn.classList.remove('is-loading');
-                    restartBtn.innerHTML = '<i data-lucide="refresh-cw" style="width:16px;height:16px;"></i> Restart';
-                }
-                lucide.createIcons();
-                fetchStats();
+            // Check if server boot completed (must also be verified online)
+            const isBootDoneText = data.log.includes('Done (') || data.log.includes('For help, type "help"') || data.log.includes('Timings Reset');
+            if (isWaitingForStart && isBootDoneText) {
+                // Double-check with stats that server process is truly active
+                fetch('/api/stats').then(r => r.json()).then(statsData => {
+                    if (statsData.status === 'online') {
+                        if (startLoadingToast) {
+                            startLoadingToast.remove();
+                            startLoadingToast = null;
+                        }
+                        showToast("⚡ Minecraft Server is fully Online & Ready to Play!", "success");
+                        isWaitingForStart = false;
+                        
+                        const startBtn = document.querySelector('button[onclick="apiCall(\'/api/start\')"]');
+                        if (startBtn) {
+                            startBtn.classList.remove('is-loading');
+                            startBtn.disabled = true;
+                        }
+                        const restartBtn = document.querySelector('button[onclick="apiCall(\'/api/restart\')"]');
+                        if (restartBtn) {
+                            restartBtn.classList.remove('is-loading');
+                            restartBtn.disabled = false;
+                        }
+                        const stopBtn = document.querySelector('button[onclick="apiCall(\'/api/stop\')"]');
+                        if (stopBtn) stopBtn.disabled = false;
+                        
+                        lucide.createIcons();
+                        fetchStats();
+                    }
+                }).catch(() => {});
             }
 
             // Check if server failed / crashed on boot
