@@ -305,6 +305,8 @@ async function apiCall(endpoint, body = null) {
     
     let activeToast = null;
     const startBtn = document.querySelector('button[onclick="apiCall(\'/api/start\')"]');
+    const stopBtn = document.querySelector('button[onclick="apiCall(\'/api/stop\')"]');
+    const restartBtn = document.querySelector('button[onclick="apiCall(\'/api/restart\')"]');
     const globalStatusBadge = document.getElementById('globalStatusBadge');
     const globalStatusText = document.getElementById('globalStatusText');
 
@@ -331,16 +333,30 @@ async function apiCall(endpoint, body = null) {
                 startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Start';
                 lucide.createIcons();
             }
+            if (restartBtn) {
+                restartBtn.classList.remove('is-loading');
+                restartBtn.innerHTML = '<i data-lucide="refresh-cw" style="width:16px;height:16px;"></i> Restart';
+                lucide.createIcons();
+            }
         }
         if (endpoint === '/api/restart') { 
-            msg = "Restarting Server..."; 
+            msg = "Rebooting Minecraft Server (Safely cycling engine)..."; 
             isWaitingForStart = true;
+            if (restartBtn) {
+                restartBtn.classList.add('is-loading');
+                restartBtn.innerHTML = '<i data-lucide="loader" class="spin-icon" style="width:16px;height:16px;"></i> Restarting...';
+                lucide.createIcons();
+            }
+            if (globalStatusBadge) {
+                globalStatusBadge.className = 'server-status-pill starting';
+                if (globalStatusText) globalStatusText.innerText = "RESTARTING...";
+            }
         }
         if (endpoint === '/api/delete') { msg = "Wiping Server Files..."; }
         if (endpoint === '/api/world/regenerate') { msg = "Regenerating World..."; }
         
         activeToast = showToast(msg, "loading");
-        if (endpoint === '/api/start') {
+        if (endpoint === '/api/start' || endpoint === '/api/restart') {
             startLoadingToast = activeToast;
         }
     } else {
@@ -357,7 +373,7 @@ async function apiCall(endpoint, body = null) {
         const data = await response.json();
         
         if (data.status === 'success') {
-            if (endpoint !== '/api/start' && activeToast) {
+            if (endpoint !== '/api/start' && endpoint !== '/api/restart' && activeToast) {
                 activeToast.remove();
                 showToast(data.message || "Action completed", "success");
             }
@@ -369,6 +385,11 @@ async function apiCall(endpoint, body = null) {
                 startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Start';
                 lucide.createIcons();
             }
+            if (restartBtn) {
+                restartBtn.classList.remove('is-loading');
+                restartBtn.innerHTML = '<i data-lucide="refresh-cw" style="width:16px;height:16px;"></i> Restart';
+                lucide.createIcons();
+            }
             showToast(data.message, 'error');
             isWaitingForStart = false;
         }
@@ -377,6 +398,11 @@ async function apiCall(endpoint, body = null) {
         if (startBtn) {
             startBtn.classList.remove('is-loading');
             startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Start';
+            lucide.createIcons();
+        }
+        if (restartBtn) {
+            restartBtn.classList.remove('is-loading');
+            restartBtn.innerHTML = '<i data-lucide="refresh-cw" style="width:16px;height:16px;"></i> Restart';
             lucide.createIcons();
         }
         showToast("Network error or connection lost.", "error");
