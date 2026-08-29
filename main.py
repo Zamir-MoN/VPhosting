@@ -7,6 +7,11 @@ import asyncio
 import random
 import zipfile
 import json
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -122,17 +127,36 @@ def check_status():
 def get_stats():
     is_running = is_server_running()
     
-    # Real VPS Hardware Metrics (instant non-blocking)
+    # Measure Minecraft Process Specific Metrics vs Host System
     try:
         import psutil
         v_mem = psutil.virtual_memory()
         ram_total_mb = int(v_mem.total / (1024 * 1024))
-        ram_used_mb = int(v_mem.used / (1024 * 1024))
-        ram = int(v_mem.percent)
-        cpu = int(psutil.cpu_percent(interval=None))
-        cpu_cores = psutil.cpu_count(logical=True)
+        cpu_cores = psutil.cpu_count(logical=True) or 2
         disk_usage = psutil.disk_usage('/')
         disk = int(disk_usage.percent)
+        
+        mc_proc = get_mc_process() if is_running else None
+        if mc_proc:
+            try:
+                # Minecraft process RAM (Resident Set Size) in MB
+                mc_mem_info = mc_proc.memory_info()
+                ram_used_mb = int(mc_mem_info.rss / (1024 * 1024))
+                
+                # Percentage of total RAM or allocated RAM
+                ram = max(0, min(100, int((ram_used_mb / max(1, ram_total_mb)) * 100)))
+                
+                # Minecraft process CPU usage (scaled by number of cores so 1 core max = 100%)
+                raw_cpu = mc_proc.cpu_percent(interval=None)
+                cpu = max(0, min(100, int(raw_cpu / max(1, cpu_cores))))
+            except Exception:
+                ram_used_mb = 0
+                ram = 0
+                cpu = 0
+        else:
+            ram_used_mb = 0
+            ram = 0
+            cpu = 0
     except Exception:
         ram_total_mb = 2048
         ram_used_mb = 0
@@ -396,12 +420,41 @@ async def manual_gdrive_backup(background_tasks: BackgroundTasks):
     background_tasks.add_task(run_backup)
     return {"status": "success", "message": "Cloud backup started in background."}
 
-# Global process tracker if tmux is missing
 MC_PROCESS = None
+
+def get_mc_process():
+    """Finds and returns the psutil.Process instance for the running Minecraft server."""
+    global MC_PROCESS
+    # 1. Direct subprocess if active
+    if MC_PROCESS and MC_PROCESS.poll() is None:
+        try:
+            return psutil.Process(MC_PROCESS.pid)
+        except Exception:
+            pass
+
+    # 2. Search running processes for java running server.jar or inside mc_server directory
+    try:
+        current_pid = os.getpid()
+        for p in psutil.process_iter(['pid', 'name', 'cmdline', 'cwd']):
+            try:
+                if p.pid == current_pid:
+                    continue
+                cmdline = p.info.get('cmdline') or []
+                cmd_str = " ".join(cmdline).lower()
+                cwd = (p.info.get('cwd') or "").lower()
+                
+                # Check if it's the Minecraft server java instance
+                if "server.jar" in cmd_str or (("java" in p.info.get('name', '').lower() or "java" in cmd_str) and "mc_server" in cwd):
+                    return p
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+    except Exception:
+        pass
+    return None
 
 def is_server_running():
     global MC_PROCESS
-    # Check tmux first
+    # Check via tmux first if available
     if shutil.which("tmux"):
         try:
             subprocess.check_output(["tmux", "has-session", "-t", "mc_server"], stderr=subprocess.STDOUT)
@@ -411,14 +464,9 @@ def is_server_running():
     # Check direct subprocess if running
     if MC_PROCESS and MC_PROCESS.poll() is None:
         return True
-    # Check by inspecting java process with server.jar
-    try:
-        if shutil.which("pgrep"):
-            pids = subprocess.check_output(["pgrep", "-f", "server.jar"]).decode().strip()
-            if pids:
-                return True
-    except:
-        pass
+    # Check via psutil process inspection
+    if get_mc_process() is not None:
+        return True
     return False
 
 @app.post("/api/start")
