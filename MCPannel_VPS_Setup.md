@@ -1,28 +1,27 @@
-# MCPannel VPS Setup Guide
+# Valqore Hosting VPS Setup Guide
 
-This guide provides step-by-step instructions for deploying the **MCPannel** (Delta X Panel) on a Linux-based Virtual Private Server (VPS) such as Ubuntu 20.04/22.04 or Debian.
+This guide provides step-by-step instructions for deploying **Valqore Hosting Control Panel** on a Linux-based Virtual Private Server (VPS) such as Ubuntu 20.04/22.04/24.04 or Debian.
 
 ## 1. Initial Server Preparation
 
-First, update your system packages and install necessary utilities, including Java (required for the Minecraft server), Python, and Tmux (used to run the Minecraft server process).
+First, update your system packages and install necessary utilities, including Java (required for Minecraft), Python, and Tmux:
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-# Install Python 3, pip, venv, tmux, curl, and Java (adjust version as needed for your Minecraft server jar, Java 17/21 are common)
-sudo apt install python3 python3-pip python3-venv tmux curl openjdk-21-jre-headless -y
+sudo apt install python3 python3-pip python3-venv tmux curl git openjdk-21-jre-headless -y
 ```
 
-## 2. Setup the Project Directory
+## 2. Clone the Project Repository
 
-Move your project files to the VPS (for example, `/var/opt/mcpannel`):
+Clone your repository into `/var/opt/valqore`:
 
 ```bash
-sudo mkdir -p /var/opt/mcpannel
-sudo chown -R $USER:$USER /var/opt/mcpannel
-cd /var/opt/mcpannel
+sudo mkdir -p /var/opt/valqore
+sudo chown -R $USER:$USER /var/opt/valqore
+cd /var/opt/valqore
 
-# Clone your repository or copy your files into this directory
-# git clone <your-repo-url> .
+# Clone your repository
+git clone https://github.com/Zamir-MoN/VPhosting.git .
 ```
 
 ## 3. Python Environment & Dependencies
