@@ -728,40 +728,65 @@ async def search_plugins(q: str = "", limit: int = 30):
     results = []
     seen_ids = set()
 
-    # 1. Search Modrinth (with fallback query)
-    try:
-        clean_q = urllib.parse.quote(q.strip())
-        modrinth_url = f"https://api.modrinth.com/v2/search?query={clean_q}&facets=[[%22project_type:plugin%22]]&limit={limit}" if clean_q else f"https://api.modrinth.com/v2/search?facets=[[%22project_type:plugin%22]]&limit={limit}"
-        req = urllib.request.Request(modrinth_url, headers=headers)
-        with urllib.request.urlopen(req, timeout=6) as res:
-            data = json.loads(res.read().decode('utf-8'))
-            for hit in data.get("hits", []):
-                pid = str(hit.get("project_id"))
-                seen_ids.add(pid)
-                results.append({
-                    "id": pid,
-                    "slug": hit.get("slug"),
-                    "title": hit.get("title"),
-                    "description": hit.get("description"),
-                    "icon_url": hit.get("icon_url") or "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f9e9.png",
-                    "downloads": hit.get("downloads", 0),
-                    "follows": hit.get("follows", 0),
-                    "author": hit.get("author", "Community"),
-                    "source": "modrinth"
-                })
-    except Exception as e:
-        print(f"Modrinth search error: {e}")
+    clean_raw = q.strip()
+    
+    # Common typo fixes for Minecraft plugins
+    typo_map = {
+        "vioce": "voice",
+        "dowlode": "download",
+        "esential": "essentials",
+        "luckperm": "luckperms",
+        "geyser": "geyser",
+        "viabackward": "viabackwards",
+        "authme": "authmereloaded",
+        "drivebackup": "drivebackupv2"
+    }
+    
+    tokens = clean_raw.lower().split()
+    corrected_tokens = [typo_map.get(t, t) for t in tokens]
+    search_terms = list(dict.fromkeys([clean_raw, " ".join(corrected_tokens)] + [t for t in corrected_tokens if len(t) > 2]))
 
-    # 2. Search Spiget (SpigotMC Database) as secondary provider
-    if q.strip():
+    # 1. Search Modrinth across all candidate terms
+    for term in search_terms[:3]:
+        if len(results) >= limit:
+            break
         try:
-            spiget_url = f"https://api.spiget.org/v2/search/resources/{urllib.parse.quote(q.strip())}?size=15&field=name"
+            clean_term = urllib.parse.quote(term)
+            modrinth_url = f"https://api.modrinth.com/v2/search?query={clean_term}&limit=20" if term else "https://api.modrinth.com/v2/search?facets=[[%22project_type:plugin%22]]&limit=24"
+            req = urllib.request.Request(modrinth_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=5) as res:
+                data = json.loads(res.read().decode('utf-8'))
+                for hit in data.get("hits", []):
+                    pid = str(hit.get("project_id"))
+                    if pid not in seen_ids:
+                        seen_ids.add(pid)
+                        results.append({
+                            "id": pid,
+                            "slug": hit.get("slug"),
+                            "title": hit.get("title"),
+                            "description": hit.get("description"),
+                            "icon_url": hit.get("icon_url") or "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f9e9.png",
+                            "downloads": hit.get("downloads", 0),
+                            "follows": hit.get("follows", 0),
+                            "author": hit.get("author", "Community"),
+                            "source": "modrinth"
+                        })
+        except Exception as e:
+            print(f"Modrinth query error for '{term}': {e}")
+
+    # 2. Search Spiget (SpigotMC Database) for extra compatibility
+    for term in search_terms[:2]:
+        if not term or len(results) >= limit:
+            continue
+        try:
+            spiget_url = f"https://api.spiget.org/v2/search/resources/{urllib.parse.quote(term)}?size=15&field=name"
             req2 = urllib.request.Request(spiget_url, headers=headers)
-            with urllib.request.urlopen(req2, timeout=6) as res2:
+            with urllib.request.urlopen(req2, timeout=5) as res2:
                 spiget_data = json.loads(res2.read().decode('utf-8'))
                 for item in spiget_data:
                     res_id = str(item.get("id"))
                     if res_id not in seen_ids:
+                        seen_ids.add(res_id)
                         icon = item.get("icon", {}).get("url")
                         if icon and not icon.startswith("http"):
                             icon = f"https://www.spigotmc.org/{icon}"
@@ -777,7 +802,32 @@ async def search_plugins(q: str = "", limit: int = 30):
                             "source": "spiget"
                         })
         except Exception as e:
-            print(f"Spiget search error: {e}")
+            print(f"Spiget query error for '{term}': {e}")
+
+    # Default fallback: If query produced 0 hits, fetch trending top plugins
+    if not results:
+        try:
+            fallback_url = "https://api.modrinth.com/v2/search?limit=24"
+            req3 = urllib.request.Request(fallback_url, headers=headers)
+            with urllib.request.urlopen(req3, timeout=5) as res3:
+                data3 = json.loads(res3.read().decode('utf-8'))
+                for hit in data3.get("hits", []):
+                    pid = str(hit.get("project_id"))
+                    if pid not in seen_ids:
+                        seen_ids.add(pid)
+                        results.append({
+                            "id": pid,
+                            "slug": hit.get("slug"),
+                            "title": hit.get("title"),
+                            "description": hit.get("description"),
+                            "icon_url": hit.get("icon_url") or "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f9e9.png",
+                            "downloads": hit.get("downloads", 0),
+                            "follows": hit.get("follows", 0),
+                            "author": hit.get("author", "Community"),
+                            "source": "modrinth"
+                        })
+        except:
+            pass
 
     return {"status": "success", "hits": results}
 
