@@ -236,20 +236,25 @@
                         </div>
                     </div>
 
-                    <!-- Live Terminal Activity -->
+                    <!-- Interactive Server Terminal -->
                     <div class="glass-panel">
                         <div class="terminal-panel-header">
                             <div style="display:flex; align-items:center; gap:10px;">
                                 <div class="terminal-dot red"></div>
                                 <div class="terminal-dot yellow"></div>
                                 <div class="terminal-dot green"></div>
-                                <h2 style="font-size: 1rem; margin: 0; margin-left: 6px;">Live Terminal Stream</h2>
+                                <h2 style="font-size: 1.05rem; margin: 0; margin-left: 6px;">Interactive Server Terminal</h2>
                             </div>
-                            <button class="action-btn restart" style="padding: 6px 14px; font-size: 0.75rem;" onclick="switchTab('console')">
-                                Full Console <i data-lucide="arrow-up-right" style="width:14px;height:14px;"></i>
+                            <button class="action-btn restart" style="padding: 6px 14px; font-size: 0.75rem;" onclick="fetchConsoleLogs()">
+                                <i data-lucide="rotate-cw" style="width:14px;height:14px;"></i> Refresh Logs
                             </button>
                         </div>
-                        <div id="dashboardLog" class="terminal-log" style="height: 240px; font-size: 0.85rem; margin-top: 14px;">Waiting for server stream...</div>
+                        <div id="log" class="terminal-log" style="height: 420px; font-size: 0.88rem; margin-top: 14px;">Waiting for server stream...</div>
+                        <div class="console-input-wrapper mt-20">
+                            <span class="prompt-arrow">></span>
+                            <input type="text" id="consoleInput" class="console-input"
+                                placeholder="Execute command (e.g. op PlayerName, gamemode creative, say Hello)...">
+                        </div>
                     </div>
                 </div>
 

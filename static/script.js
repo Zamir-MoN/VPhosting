@@ -218,7 +218,6 @@ setInterval(fetchStats, 3000);
 
 // --- INTERACTIVE CONSOLE ---
 const logDiv = document.getElementById('log');
-const dashboardLogDiv = document.getElementById('dashboardLog');
 let autoScroll = true;
 let isWaitingForStart = false;
 
@@ -227,11 +226,12 @@ async function fetchConsoleLogs() {
         const res = await fetch('/api/console');
         const data = await res.json();
         if (data.status === 'success') {
-            logDiv.innerText = data.log;
-            dashboardLogDiv.innerText = data.log;
-            if (autoScroll) {
-                logDiv.scrollTop = logDiv.scrollHeight;
-                dashboardLogDiv.scrollTop = dashboardLogDiv.scrollHeight;
+            const consoleElem = document.getElementById('log');
+            if (consoleElem) {
+                consoleElem.innerText = data.log;
+                if (autoScroll) {
+                    consoleElem.scrollTop = consoleElem.scrollHeight;
+                }
             }
             if (isWaitingForStart && (data.log.includes('Done (') || data.log.includes('For help, type "help"'))) {
                 showToast("Server Ready!", "success");
@@ -242,7 +242,11 @@ async function fetchConsoleLogs() {
 }
 setInterval(fetchConsoleLogs, 2000);
 
-logDiv.addEventListener('scroll', () => { autoScroll = (logDiv.scrollTop + logDiv.clientHeight >= logDiv.scrollHeight - 10); });
+if (logDiv) {
+    logDiv.addEventListener('scroll', () => { 
+        autoScroll = (logDiv.scrollTop + logDiv.clientHeight >= logDiv.scrollHeight - 10); 
+    });
+}
 
 document.getElementById('consoleInput').addEventListener('keypress', async function (e) {
     if (e.key === 'Enter') {
