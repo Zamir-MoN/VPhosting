@@ -16,74 +16,56 @@ Before you begin, ensure the following inbound ports are allowed in your **Cloud
 
 ---
 
-## ⚡ Step-by-Step Installation
+## ⚡ 1-Line Super-Fast Automated Setup (Recommended)
 
-### Step 1: Connect to Your New VPS
-
-Open your terminal (PowerShell, Command Prompt, or PuTTY) and connect via SSH:
+Just run this **single command** on your fresh Ubuntu/Debian VPS terminal:
 
 ```bash
-ssh ubuntu@YOUR_VPS_IP
+curl -sSL https://raw.githubusercontent.com/Zamir-MoN/VPhosting/main/install.sh | sudo bash
 ```
-*(Replace `YOUR_VPS_IP` with your actual VPS IP address)*
+
+> **What this does automatically in under 60 seconds:**
+> 1. Updates Ubuntu packages & installs Java 21, Python 3, Git, and Tmux.
+> 2. Clones the repository & configures the Python virtual environment.
+> 3. Creates and starts the 24/7 background system service (`valqore.service`).
+> 4. Configures UFW firewall rules for Ports `8090` and `25565`.
+> 5. Detects your public IP and prints your ready-to-use dashboard link!
 
 ---
 
-### Step 2: Update System Packages & Install Dependencies
+## 🛠️ Alternative: Manual Step-by-Step Installation
 
-Run the following command to install **Python 3, Virtualenv, Git, Tmux, and Java 21** (required for Minecraft 1.20.5+):
+If you prefer to configure everything manually step-by-step:
 
+### Step 1: Connect to Your New VPS
+```bash
+ssh ubuntu@YOUR_VPS_IP
+```
+
+### Step 2: Update System & Install Java 21 + Dependencies
 ```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y python3 python3-pip python3-venv openjdk-21-jre-headless git tmux curl
 ```
 
-Verify Java 21 is installed:
-```bash
-java -version
-```
-
----
-
-### Step 3: Clone the Valqore Hosting Repository
-
-Clone the project directly into your home folder:
-
+### Step 3: Clone the Repository
 ```bash
 cd /home/ubuntu
 git clone https://github.com/Zamir-MoN/VPhosting.git valqore
 cd /home/ubuntu/valqore
 ```
 
----
-
-### Step 4: Create Virtual Environment & Install Python Packages
-
+### Step 4: Python Environment
 ```bash
-# Create isolated Python virtual environment
 python3 -m venv venv
-
-# Activate virtual environment
 source venv/bin/activate
-
-# Upgrade pip and install all backend requirements
 pip install --upgrade pip
-pip install fastapi uvicorn requests psutil mcrcon google-auth google-auth-oauthlib google-api-python-client
+pip install -r requirements.txt
 ```
 
----
-
-### Step 5: Configure the 24/7 System Background Service
-
-Create a `systemd` service so the panel runs 24/7 in the background and restarts automatically on server boot:
-
+### Step 5: Configure 24/7 System Background Service
 ```bash
-sudo nano /etc/systemd/system/valqore.service
-```
-
-Paste the following configuration:
-
-```ini
+sudo bash -c 'cat <<EOF > /etc/systemd/system/valqore.service
 [Unit]
 Description=Valqore Hosting Minecraft Panel Service
 After=network.target
@@ -98,40 +80,14 @@ Environment=PATH=/usr/bin:/bin:/usr/local/bin:/home/ubuntu/valqore/venv/bin
 
 [Install]
 WantedBy=multi-user.target
+EOF'
 ```
 
-*Save and exit in nano:* Press `Ctrl + O`, then `Enter`, then `Ctrl + X`.
-
----
-
-### Step 6: Enable and Start the Service
-
+### Step 6: Enable and Start Service
 ```bash
-# Reload systemd daemon
 sudo systemctl daemon-reload
-
-# Enable service to start on system boot
 sudo systemctl enable valqore
-
-# Start the service now
 sudo systemctl start valqore
-
-# Check the status (should show 'active (running)')
-sudo systemctl status valqore
-```
-
----
-
-### Step 7: (Optional) Configure Local Firewall (UFW)
-
-If your VPS uses Ubuntu's built-in `ufw` firewall:
-
-```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 8090/tcp
-sudo ufw allow 25565/tcp
-sudo ufw allow 25565/udp
-sudo ufw --force enable
 ```
 
 ---
