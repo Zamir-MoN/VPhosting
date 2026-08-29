@@ -760,12 +760,63 @@ async function saveFile() {
     }
 }
 
-function dragOverHandler(e) { e.preventDefault(); document.getElementById('fileExplorer').classList.add('drag-over'); }
-function dragLeaveHandler(e) { e.preventDefault(); document.getElementById('fileExplorer').classList.remove('drag-over'); }
+// --- DRAG & DROP & MULTI-FILE UPLOADER ---
+function initDragAndDrop() {
+    const dropTarget = document.getElementById('fileExplorer');
+    if (!dropTarget) return;
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        window.addEventListener(eventName, (e) => {
+            const filesTab = document.getElementById('tab-files');
+            if (filesTab && filesTab.classList.contains('active')) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropTarget.classList.add('drag-over');
+            }
+        }, false);
+    });
+
+    ['dragleave', 'dragend'].forEach(eventName => {
+        window.addEventListener(eventName, (e) => {
+            if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+                dropTarget.classList.remove('drag-over');
+            }
+        }, false);
+    });
+
+    window.addEventListener('drop', (e) => {
+        const filesTab = document.getElementById('tab-files');
+        if (filesTab && filesTab.classList.contains('active')) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropTarget.classList.remove('drag-over');
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleMultiUpload(e.dataTransfer.files);
+            }
+        }
+    }, false);
+}
+
+function dragOverHandler(e) { 
+    e.preventDefault(); 
+    e.stopPropagation();
+    const el = document.getElementById('fileExplorer');
+    if (el) el.classList.add('drag-over'); 
+}
+
+function dragLeaveHandler(e) { 
+    e.preventDefault(); 
+    e.stopPropagation();
+    const el = document.getElementById('fileExplorer');
+    if (el) el.classList.remove('drag-over'); 
+}
+
 async function dropHandler(e) {
     e.preventDefault();
-    document.getElementById('fileExplorer').classList.remove('drag-over');
-    if (e.dataTransfer.files) {
+    e.stopPropagation();
+    const el = document.getElementById('fileExplorer');
+    if (el) el.classList.remove('drag-over');
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         handleMultiUpload(e.dataTransfer.files);
     }
 }
@@ -774,10 +825,10 @@ async function handleMultiUpload(files) {
     if (!files || files.length === 0) return;
     
     const fileArray = Array.from(files);
-    const activeToast = showToast(`Uploading ${fileArray.length} files...`, "loading");
+    const activeToast = showToast(`Uploading ${fileArray.length} file(s)...`, "loading");
     
     let uploadedPaths = [];
-    for (const file of fileArray) {
+    const uploadPromises = fileArray.map(async (file) => {
         try {
             const formData = new FormData();
             formData.append("file", file);
@@ -787,11 +838,15 @@ async function handleMultiUpload(files) {
             if (data.status === 'success') {
                 uploadedPaths.push(currentPath ? `${currentPath}/${file.name}` : file.name);
             }
-        } catch (e) { console.error("Upload error for", file.name, e); }
-    }
+        } catch (e) {
+            console.error("Upload error for", file.name, e);
+        }
+    });
+
+    await Promise.all(uploadPromises);
     
     if (activeToast) activeToast.remove();
-    showToast(`Successfully uploaded ${uploadedPaths.length}/${fileArray.length} files.`, "success", uploadedPaths.length > 0 ? () => undoUpload(uploadedPaths) : null);
+    showToast(`⚡ Uploaded ${uploadedPaths.length}/${fileArray.length} files successfully!`, "success", uploadedPaths.length > 0 ? () => undoUpload(uploadedPaths) : null);
     loadFiles(currentPath);
 }
 
@@ -1015,6 +1070,7 @@ document.addEventListener("DOMContentLoaded", () => {
     checkStatus();
     fetchStats();
     fetchConsoleLogs();
+    initDragAndDrop();
 });
 setInterval(checkStatus, 5000);
 
