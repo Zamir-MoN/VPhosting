@@ -170,17 +170,20 @@ async function fetchStats() {
                 globalStatusBadge.classList.remove('offline');
                 globalStatusText.innerText = "ONLINE";
             }
-            if (startBtn) startBtn.disabled = true;
+            if (startBtn && !isWaitingForStart) {
+                startBtn.classList.remove('is-loading');
+                startBtn.disabled = false;
+            }
             if (stopBtn) stopBtn.disabled = false;
             if (restartBtn) restartBtn.disabled = false;
         } else {
-            if (globalStatusBadge) {
+            if (globalStatusBadge && !isWaitingForStart) {
                 globalStatusBadge.classList.add('offline');
                 globalStatusText.innerText = "OFFLINE";
             }
-            if (startBtn) startBtn.disabled = false;
-            if (stopBtn) stopBtn.disabled = true;
-            if (restartBtn) restartBtn.disabled = true;
+            if (startBtn && !isWaitingForStart) startBtn.disabled = false;
+            if (stopBtn) stopBtn.disabled = false;
+            if (restartBtn) restartBtn.disabled = false;
         }
         
         // RAM
