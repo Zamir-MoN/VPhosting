@@ -136,29 +136,52 @@ def get_stats():
         disk_usage = psutil.disk_usage('/')
         disk = int(disk_usage.percent)
         
-        mc_proc = get_mc_process() if is_running else None
-        if mc_proc:
-            try:
-                # Minecraft process RAM (Resident Set Size) in MB
-                mc_mem_info = mc_proc.memory_info()
-                ram_used_mb = int(mc_mem_info.rss / (1024 * 1024))
-                
-                # Percentage of total RAM or allocated RAM
-                ram = max(0, min(100, int((ram_used_mb / max(1, ram_total_mb)) * 100)))
-                
-                # Minecraft process CPU usage (scaled by number of cores so 1 core max = 100%)
-                raw_cpu = mc_proc.cpu_percent(interval=None)
-                cpu = max(0, min(100, int(raw_cpu / max(1, cpu_cores))))
-            except Exception:
-                ram_used_mb = 0
-                ram = 0
-                cpu = 0
+        mc_procs = get_mc_processes() if is_running else []
+        ram_used_mb = 0
+        total_cpu_val = 0.0
+        allocated_ram_mb = ram_total_mb
+        
+        if mc_procs:
+            for p in mc_procs:
+                try:
+                    # Sum RAM across processes (in MB)
+                    ram_used_mb += int(p.memory_info().rss / (1024 * 1024))
+                    
+                    # Read CPU percent
+                    p_cpu = p.cpu_percent(interval=None)
+                    if p_cpu is not None and p_cpu > 0:
+                        total_cpu_val += p_cpu
+                        
+                    # Check cmdline for -Xmx argument to know max allocated heap for MC
+                    cmdline = p.cmdline() if callable(getattr(p, 'cmdline', None)) else []
+                    for arg in cmdline:
+                        if arg.startswith("-Xmx") or arg.startswith("-Xms"):
+                            val_str = arg[4:].strip().upper()
+                            if val_str.endswith("G"):
+                                allocated_ram_mb = int(float(val_str[:-1]) * 1024)
+                            elif val_str.endswith("M"):
+                                allocated_ram_mb = int(float(val_str[:-1]))
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            
+            # Calculate RAM usage % relative to allocated RAM (or total RAM)
+            target_max_ram = allocated_ram_mb if allocated_ram_mb > 0 else ram_total_mb
+            ram = max(0, min(100, int((ram_used_mb / max(1, target_max_ram)) * 100)))
+            
+            # Scale CPU % to overall system usage (0 - 100%)
+            cpu = max(0, min(100, int(total_cpu_val / max(1, cpu_cores))))
+            
+            # If server is reported running and active, ensure at least 1% is displayed if active
+            if ram_used_mb > 50 and ram == 0:
+                ram = 1
         else:
             ram_used_mb = 0
             ram = 0
             cpu = 0
-    except Exception:
+            allocated_ram_mb = ram_total_mb
+    except Exception as e:
         ram_total_mb = 2048
+        allocated_ram_mb = 2048
         ram_used_mb = 0
         ram = 0
         cpu = 0
@@ -237,6 +260,7 @@ def get_stats():
         "ram_percent": ram,
         "ram_used_mb": ram_used_mb,
         "ram_total_mb": ram_total_mb,
+        "ram_allocated_mb": allocated_ram_mb,
         "disk_percent": disk,
         "players_online": len(online_players),
         "max_players": max_players,
@@ -420,21 +444,25 @@ async def manual_gdrive_backup(background_tasks: BackgroundTasks):
     background_tasks.add_task(run_backup)
     return {"status": "success", "message": "Cloud backup started in background."}
 
-MC_PROCESS = None
-
-def get_mc_process():
-    """Finds and returns the psutil.Process instance for the running Minecraft server."""
+def get_mc_processes():
+    """Finds and returns a list of psutil.Process instances for the running Minecraft server (including Java and its children)."""
     global MC_PROCESS
+    found_procs = []
+    
     # 1. Direct subprocess if active
     if MC_PROCESS and MC_PROCESS.poll() is None:
         try:
-            return psutil.Process(MC_PROCESS.pid)
+            parent = psutil.Process(MC_PROCESS.pid)
+            found_procs.append(parent)
+            found_procs.extend(parent.children(recursive=True))
         except Exception:
             pass
 
-    # 2. Search running processes for java running server.jar or inside mc_server directory
+    # 2. Search running processes for java or processes running inside MC_DIR
     try:
         current_pid = os.getpid()
+        mc_dir_clean = os.path.abspath(MC_DIR).lower()
+        
         for p in psutil.process_iter(['pid', 'name', 'cmdline', 'cwd']):
             try:
                 if p.pid == current_pid:
@@ -442,15 +470,18 @@ def get_mc_process():
                 cmdline = p.info.get('cmdline') or []
                 cmd_str = " ".join(cmdline).lower()
                 cwd = (p.info.get('cwd') or "").lower()
+                name = (p.info.get('name') or "").lower()
                 
-                # Check if it's the Minecraft server java instance
-                if "server.jar" in cmd_str or (("java" in p.info.get('name', '').lower() or "java" in cmd_str) and "mc_server" in cwd):
-                    return p
+                # Check if it's Java running Minecraft or any process running with server.jar or inside mc_server
+                if "server.jar" in cmd_str or ("java" in name and (mc_dir_clean in cwd or "minecraft" in cmd_str or "paper" in cmd_str or "purpur" in cmd_str or "fabric" in cmd_str or "forge" in cmd_str)):
+                    if p.pid not in [x.pid for x in found_procs]:
+                        found_procs.append(p)
+                        found_procs.extend([c for c in p.children(recursive=True) if c.pid not in [x.pid for x in found_procs]])
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 continue
     except Exception:
         pass
-    return None
+    return found_procs
 
 def is_server_running():
     global MC_PROCESS
@@ -464,8 +495,9 @@ def is_server_running():
     # Check direct subprocess if running
     if MC_PROCESS and MC_PROCESS.poll() is None:
         return True
-    # Check via psutil process inspection
-    if get_mc_process() is not None:
+    # Check via process inspection
+    procs = get_mc_processes()
+    if len(procs) > 0:
         return True
     return False
 

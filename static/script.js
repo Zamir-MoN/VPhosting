@@ -248,7 +248,7 @@ async function fetchStats() {
         if (textRam) textRam.innerText = `${data.ram_percent}%`;
         const subRam = document.getElementById('sub-ram');
         const usedMb = data.ram_used_mb || 0;
-        const totalMb = data.ram_total_mb || 2048;
+        const totalMb = data.ram_allocated_mb || data.ram_total_mb || 2048;
         if (subRam) subRam.innerText = `${usedMb} / ${totalMb} MB`;
         
         // CPU
