@@ -437,14 +437,9 @@ def start_server():
 
         # Launch with tmux if installed, otherwise fallback to direct background process
         if os.path.exists(tmux_bin):
-            # Use -c to set working directory properly
-            subprocess.run([tmux_bin, "new-session", "-d", "-s", "mc_server", "-c", MC_DIR, f"{bash_bin} start.sh"], check=True)
+            subprocess.run([tmux_bin, "new-session", "-d", "-s", "mc_server", "-c", MC_DIR, bash_bin, start_script], check=True)
         else:
-            # Direct background process fallback
-            if os.path.exists(start_script) and os.path.exists(bash_bin):
-                cmd = [bash_bin, "start.sh"]
-            else:
-                cmd = [java_bin, "-Xms1G", "-Xmx2G", "-jar", "server.jar", "nogui"]
+            cmd = [bash_bin, start_script] if os.path.exists(start_script) else [java_bin, "-Xms1G", "-Xmx2G", "-jar", "server.jar", "nogui"]
             log_file = open(log_path, "a")
             MC_PROCESS = subprocess.Popen(cmd, cwd=MC_DIR, stdout=log_file, stderr=log_file, stdin=subprocess.PIPE)
 
