@@ -178,6 +178,18 @@ def get_stats():
                 all_players = [entry['name'] for entry in cache_data]
         except: pass
 
+    # Read max-players from server.properties if available, else default to 50
+    max_players = 50
+    props_path = os.path.join(MC_DIR, "server.properties")
+    if os.path.exists(props_path):
+        try:
+            with open(props_path, 'r') as f:
+                for line in f:
+                    if line.startswith("max-players="):
+                        max_players = int(line.split("=")[1].strip())
+                        break
+        except: pass
+
     return {
         "status": "online" if is_running else "offline",
         "cpu_percent": cpu,
@@ -187,7 +199,7 @@ def get_stats():
         "ram_total_mb": ram_total_mb,
         "disk_percent": disk,
         "players_online": len(online_players),
-        "max_players": 20,
+        "max_players": max_players,
         "backup_countdown": int(remaining),
         "backup_percent": backup_percent,
         "online_players": [{"name": n, "status": "online"} for n in online_players],
