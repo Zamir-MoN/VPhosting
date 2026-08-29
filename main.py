@@ -546,15 +546,22 @@ async def upload_world(file: UploadFile = File(...)):
 def get_versions(software: str):
     try:
         versions = []
-        if software == "paper":
-            versions = requests.get("https://api.papermc.io/v2/projects/paper").json().get("versions", [])
+        if software in ["paper", "purpur"]:
+            # Purpur / Paper compatible API
+            res = requests.get("https://api.purpurmc.org/v2/purpur", timeout=10)
+            if res.status_code == 200:
+                versions = res.json().get("versions", [])
+            if not versions:
+                # Fallback versions
+                versions = ["1.21.4", "1.21.3", "1.21.1", "1.21", "1.20.6", "1.20.4", "1.20.2", "1.20.1", "1.19.4", "1.18.2", "1.16.5", "1.12.2", "1.8.8"]
         elif software == "fabric":
-            versions = [v["version"] for v in requests.get("https://meta.fabricmc.net/v2/versions/game").json() if v["stable"]]
+            versions = [v["version"] for v in requests.get("https://meta.fabricmc.net/v2/versions/game", timeout=10).json() if v.get("stable")]
         elif software == "vanilla":
-            versions = [v["id"] for v in requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json").json()["versions"] if v["type"] == "release"]
+            manifest = requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json", timeout=10).json()
+            versions = [v["id"] for v in manifest.get("versions", []) if v.get("type") == "release"]
         elif software in ["forge", "neoforge"]:
             api_url = "https://meta.prismlauncher.org/v1/net.minecraftforge/" if software == "forge" else "https://meta.prismlauncher.org/v1/net.neoforged/"
-            for v in requests.get(api_url).json().get("versions", []):
+            for v in requests.get(api_url, timeout=10).json().get("versions", []):
                 for req in v.get("requires", []):
                     if req.get("uid") == "net.minecraft" and req.get("equals") not in versions:
                         versions.append(req.get("equals"))
@@ -580,39 +587,38 @@ def install_software(software: str, version: str):
                 p = os.path.join(MC_DIR, item)
                 shutil.rmtree(p) if os.path.isdir(p) else os.remove(p)
         
-        if software == "paper":
-            builds = requests.get(f"https://api.papermc.io/v2/projects/paper/versions/{version}").json().get("builds", [])[-1]
-            url = f"https://api.papermc.io/v2/projects/paper/versions/{version}/builds/{builds}/downloads/paper-{version}-{builds}.jar"
-            with requests.get(url, stream=True) as r:
+        if software in ["paper", "purpur"]:
+            url = f"https://api.purpurmc.org/v2/purpur/{version}/latest/download"
+            with requests.get(url, stream=True, timeout=60) as r:
                 r.raise_for_status()
                 with open(os.path.join(MC_DIR, "server.jar"), 'wb') as f:
                     for chunk in r.iter_content(8192): f.write(chunk)
                     
         elif software == "fabric":
             url = f"https://meta.fabricmc.net/v2/versions/loader/{version}/0.15.11/1.0.1/server/jar"
-            with requests.get(url, stream=True) as r:
+            with requests.get(url, stream=True, timeout=60) as r:
                 r.raise_for_status()
                 with open(os.path.join(MC_DIR, "server.jar"), 'wb') as f:
                     for chunk in r.iter_content(8192): f.write(chunk)
                     
         elif software == "vanilla":
-            manifest = requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json").json()
+            manifest = requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json", timeout=10).json()
             v_url = next(v["url"] for v in manifest["versions"] if v["id"] == version)
-            url = requests.get(v_url).json()["downloads"]["server"]["url"]
-            with requests.get(url, stream=True) as r:
+            url = requests.get(v_url, timeout=10).json()["downloads"]["server"]["url"]
+            with requests.get(url, stream=True, timeout=60) as r:
                 r.raise_for_status()
                 with open(os.path.join(MC_DIR, "server.jar"), 'wb') as f:
                     for chunk in r.iter_content(8192): f.write(chunk)
                     
         elif software in ["forge", "neoforge"]:
             api_url = "https://meta.prismlauncher.org/v1/net.minecraftforge/" if software == "forge" else "https://meta.prismlauncher.org/v1/net.neoforged/"
-            target_version = next((v["version"] for v in requests.get(api_url).json().get("versions", []) if any(req.get("uid") == "net.minecraft" and req.get("equals") == version for req in v.get("requires", []))), None)
+            target_version = next((v["version"] for v in requests.get(api_url, timeout=10).json().get("versions", []) if any(req.get("uid") == "net.minecraft" and req.get("equals") == version for req in v.get("requires", []))), None)
             if not target_version: return {"status": "error", "message": f"Version not found."}
             
             url = f"https://maven.minecraftforge.net/net/minecraftforge/forge/{version}-{target_version}/forge-{version}-{target_version}-installer.jar" if software == "forge" else f"https://maven.neoforged.net/releases/net/neoforged/neoforge/{target_version}/neoforge-{target_version}-installer.jar"
             
             installer_path = os.path.join(MC_DIR, "installer.jar")
-            with requests.get(url, stream=True) as r:
+            with requests.get(url, stream=True, timeout=120) as r:
                 r.raise_for_status()
                 with open(installer_path, 'wb') as f:
                     for chunk in r.iter_content(8192): f.write(chunk)
