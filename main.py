@@ -498,7 +498,9 @@ java -Xms{alloc_mb}M -Xmx{alloc_mb}M \\
         try:
             if shutil.which("fuser"):
                 subprocess.run(["fuser", "-k", "25565/tcp"], stderr=subprocess.DEVNULL)
-            else:
+            elif shutil.which("pkill"):
+                subprocess.run(["pkill", "-9", "-f", "server.jar"], stderr=subprocess.DEVNULL)
+            elif shutil.which("killall"):
                 subprocess.run(["killall", "-9", "java"], stderr=subprocess.DEVNULL)
             time.sleep(0.5)
         except:
@@ -573,10 +575,20 @@ async def stop_server():
                 pass
             MC_PROCESS = None
 
-        # 3. Kill any remaining java/tmux instances
+        # 3. Kill any remaining java/tmux instances safely using pkill / psutil
         if shutil.which("tmux"):
-            subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
-        subprocess.run(["killall", "-9", "java"], stderr=subprocess.DEVNULL)
+            try:
+                subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
+            except:
+                pass
+
+        try:
+            if shutil.which("pkill"):
+                subprocess.run(["pkill", "-9", "-f", "server.jar"], stderr=subprocess.DEVNULL)
+            elif shutil.which("killall"):
+                subprocess.run(["killall", "-9", "java"], stderr=subprocess.DEVNULL)
+        except:
+            pass
 
         # 4. Clean up lock files
         for world_folder in ["world", "world_nether", "world_the_end"]:
