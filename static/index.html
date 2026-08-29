@@ -364,9 +364,14 @@
                     <div id="fileExplorer" class="glass-panel" ondragover="dragOverHandler(event)"
                         ondragleave="dragLeaveHandler(event)" ondrop="dropHandler(event)">
                         <div class="file-header">
-                            <div>
-                                <h2 id="currentPathDisplay" style="margin: 0;">/root</h2>
-                                <p style="color: #9E9EA8; font-size: 0.82rem; margin-top: 5px;">Drag & drop files or click upload to manage your server assets</p>
+                            <div style="display: flex; align-items: center; gap: 14px;">
+                                <button id="fileBackButton" class="action-btn restart" style="display: none; padding: 8px 14px; font-size: 0.8rem; width: auto;" onclick="navigateFileBack()">
+                                    <i data-lucide="arrow-left" style="width: 15px; height: 15px;"></i> Back
+                                </button>
+                                <div>
+                                    <h2 id="currentPathDisplay" style="margin: 0; display: flex; align-items: center; gap: 8px;">/root</h2>
+                                    <p style="color: #9E9EA8; font-size: 0.82rem; margin-top: 4px;">Drag & drop files or click upload to manage your server assets</p>
+                                </div>
                             </div>
                             <div style="display: flex; gap: 10px;">
                                 <input type="file" id="multiFileUploadInput" style="display: none;" multiple onchange="handleMultiUpload(this.files)">

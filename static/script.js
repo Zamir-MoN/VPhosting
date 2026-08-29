@@ -678,6 +678,12 @@ function formatBytes(bytes) {
 
 const IMPORTANT_FILES = ['world', 'world_nether', 'world_the_end', 'server.properties', 'banned-ips.json', 'banned-players.json', 'ops.json', 'usercache.json', 'whitelist.json', 'eula.txt', 'server.jar', 'start.sh', 'plugins'];
 
+function navigateFileBack() {
+    if (!currentPath) return;
+    const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+    loadFiles(parentPath);
+}
+
 async function loadFiles(path) {
     const tbody = document.getElementById('fileListBody');
     let activeToast = null;
@@ -688,18 +694,43 @@ async function loadFiles(path) {
         if (activeToast) activeToast.remove();
         if (data.status === 'success') {
             currentPath = data.current_path;
-            document.getElementById('currentPathDisplay').innerText = '/root' + (currentPath ? '/' + currentPath : '');
+            
+            // Update Header Back Button
+            const backBtn = document.getElementById('fileBackButton');
+            if (backBtn) {
+                backBtn.style.display = currentPath ? 'inline-flex' : 'none';
+            }
+            
+            // Build interactive breadcrumbs
+            const pathDisplay = document.getElementById('currentPathDisplay');
+            if (pathDisplay) {
+                if (!currentPath) {
+                    pathDisplay.innerHTML = `<span style="color: var(--primary);">/root</span>`;
+                } else {
+                    const parts = currentPath.split('/');
+                    let html = `<span style="cursor: pointer; color: var(--text-muted);" onclick="loadFiles('')">/root</span>`;
+                    let accumulated = '';
+                    parts.forEach((part, index) => {
+                        accumulated += (index === 0 ? '' : '/') + part;
+                        const targetAcc = accumulated;
+                        const isLast = (index === parts.length - 1);
+                        html += ` <span style="color: rgba(255,255,255,0.3); font-weight:400;">/</span> <span style="${isLast ? 'color: var(--primary); font-weight: 700;' : 'color: var(--text-muted); cursor: pointer;'}" onclick="loadFiles('${targetAcc}')">${part}</span>`;
+                    });
+                    pathDisplay.innerHTML = html;
+                }
+            }
+
             const tbody = document.getElementById('fileListBody');
             tbody.innerHTML = '';
             
             if (currentPath !== '') {
                 const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
                 tbody.innerHTML += `
-                    <tr class="file-row">
-                        <td colspan="4" onclick="loadFiles('${parentPath}')">
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <i data-lucide="chevron-left" style="width:16px;height:16px"></i>
-                                <strong>.. (Back)</strong>
+                    <tr class="file-row" style="background: rgba(230, 255, 0, 0.04); cursor: pointer;" onclick="loadFiles('${parentPath}')">
+                        <td colspan="4" style="padding: 12px 16px;">
+                            <div style="display:flex; align-items:center; gap:10px; color: var(--primary); font-weight: 700;">
+                                <i data-lucide="arrow-left" style="width:16px;height:16px"></i>
+                                <span>.. (Back to parent directory)</span>
                             </div>
                         </td>
                     </tr>`;
