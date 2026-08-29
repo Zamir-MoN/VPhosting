@@ -378,10 +378,15 @@ body {
     border: 1px solid var(--glass-border);
     border-radius: 18px;
     padding: 24px;
+    margin-bottom: 24px;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     box-shadow: var(--glass-shadow);
     transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.glass-panel:last-child {
+    margin-bottom: 0;
 }
 
 .glass-panel:hover {
@@ -403,7 +408,7 @@ body {
     margin-top: 4px;
 }
 
-.mb-20 { margin-bottom: 20px; }
+.mb-20 { margin-bottom: 24px !important; }
 .mt-10 { margin-top: 10px; }
 .mt-20 { margin-top: 20px; }
 .w-100 { width: 100%; }
