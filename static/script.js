@@ -141,10 +141,54 @@ function switchTab(tabId, element) {
 
 // --- IP Logic ---
 function initIpDisplay() {
-    document.getElementById('serverIpDisplay').innerText = window.location.hostname + ":25565";
+    const el = document.getElementById('serverIpDisplay');
+    if (el) el.innerText = window.location.hostname + ":25565";
 }
-function copyIp() {
-    navigator.clipboard.writeText(window.location.hostname + ":25565").then(() => { showToast("IP Copied to clipboard!", "success"); });
+
+async function copyIp() {
+    const ipText = window.location.hostname + ":25565";
+    let copied = false;
+
+    // Try modern Clipboard API
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(ipText);
+            copied = true;
+        } catch (e) {
+            copied = false;
+        }
+    }
+
+    // Fallback for non-HTTPS / HTTP IP origins
+    if (!copied) {
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = ipText;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            copied = document.execCommand('copy');
+            textArea.remove();
+        } catch (err) {
+            copied = false;
+        }
+    }
+
+    // Visual button bounce & icon checkmark feedback
+    const btn = document.querySelector('#connectionBar .icon-btn');
+    if (btn) {
+        btn.innerHTML = `<i data-lucide="check" style="width: 14px; height: 14px; color: var(--primary);"></i>`;
+        lucide.createIcons();
+        setTimeout(() => {
+            btn.innerHTML = `<i data-lucide="copy" style="width: 14px; height: 14px;"></i>`;
+            lucide.createIcons();
+        }, 2000);
+    }
+
+    showToast(`⚡ Server IP (${ipText}) copied to clipboard!`, "success");
 }
 
 // --- DASHBOARD RINGS ---
