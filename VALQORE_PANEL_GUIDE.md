@@ -12,17 +12,6 @@ Connect to your VPS terminal via SSH and run this **single command**:
 curl -sSL https://raw.githubusercontent.com/Zamir-MoN/VPhosting/main/install.sh | sudo bash
 ```
 
-### 🛡️ Open Firewall Ports:
-```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 8090/tcp
-sudo ufw allow 25565/tcp
-sudo ufw allow 25565/udp
-sudo ufw allow 19132/udp
-sudo ufw allow 24454/udp
-sudo ufw --force enable
-```
-
 ---
 
 ## 🌐 2. Access Your Dashboard
