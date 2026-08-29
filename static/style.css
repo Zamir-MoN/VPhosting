@@ -72,8 +72,8 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    opacity: 0.45;
-    filter: saturate(1.2) contrast(1.1);
+    opacity: 0.65;
+    filter: saturate(1.25) contrast(1.1);
     transform: scale(1.02);
 }
 
@@ -83,8 +83,8 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle at 50% 30%, rgba(10, 10, 11, 0.4) 0%, rgba(10, 10, 11, 0.85) 100%);
-    backdrop-filter: blur(2px);
+    background: radial-gradient(circle at 50% 30%, rgba(10, 10, 11, 0.25) 0%, rgba(10, 10, 11, 0.75) 100%);
+    backdrop-filter: blur(1.5px);
     z-index: -1;
 }
 
@@ -110,12 +110,6 @@ body {
     min-height: 100vh;
     width: 100vw;
     background-color: transparent;
-    background-image: 
-        radial-gradient(at 10% 10%, rgba(109, 40, 217, 0.12) 0px, transparent 40%),
-        radial-gradient(at 90% 15%, rgba(230, 255, 0, 0.05) 0px, transparent 35%),
-        radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-    background-size: 100% 100%, 100% 100%, 28px 28px;
-    background-position: 0 0, 0 0, 0 0;
     position: relative;
 }
 
@@ -126,7 +120,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle at 50% 50%, transparent 40%, rgba(10, 10, 11, 0.5) 100%);
+    background: radial-gradient(circle at 50% 50%, transparent 50%, rgba(10, 10, 11, 0.4) 100%);
     pointer-events: none;
     z-index: 0;
 }
