@@ -733,26 +733,41 @@ async def search_plugins(q: str = "", limit: int = 30):
     # Common typo fixes for Minecraft plugins
     typo_map = {
         "vioce": "voice",
+        "voic": "voice",
         "dowlode": "download",
+        "downlaod": "download",
         "esential": "essentials",
+        "essensial": "essentials",
         "luckperm": "luckperms",
+        "luckprem": "luckperms",
         "geyser": "geyser",
         "viabackward": "viabackwards",
+        "viaback": "viabackwards",
         "authme": "authmereloaded",
-        "drivebackup": "drivebackupv2"
+        "drivebackup": "drivebackupv2",
+        "drivebackupv": "drivebackupv2"
     }
     
     tokens = clean_raw.lower().split()
     corrected_tokens = [typo_map.get(t, t) for t in tokens]
-    search_terms = list(dict.fromkeys([clean_raw, " ".join(corrected_tokens)] + [t for t in corrected_tokens if len(t) > 2]))
+    corrected_str = " ".join(corrected_tokens)
 
-    # 1. Search Modrinth across all candidate terms
-    for term in search_terms[:3]:
+    # Search list ordered by priority: corrected phrase -> individual words -> raw phrase
+    search_terms = []
+    if corrected_str and corrected_str != clean_raw.lower():
+        search_terms.append(corrected_str)
+    search_terms.append(clean_raw)
+    for t in corrected_tokens:
+        if len(t) >= 3 and t not in search_terms:
+            search_terms.append(t)
+
+    # 1. Search Modrinth across candidate terms
+    for term in search_terms[:4]:
         if len(results) >= limit:
             break
         try:
-            clean_term = urllib.parse.quote(term)
-            modrinth_url = f"https://api.modrinth.com/v2/search?query={clean_term}&limit=20" if term else "https://api.modrinth.com/v2/search?facets=[[%22project_type:plugin%22]]&limit=24"
+            clean_term = urllib.parse.quote(term.strip())
+            modrinth_url = f"https://api.modrinth.com/v2/search?query={clean_term}&limit=20" if term.strip() else "https://api.modrinth.com/v2/search?facets=[[%22project_type:plugin%22]]&limit=24"
             req = urllib.request.Request(modrinth_url, headers=headers)
             with urllib.request.urlopen(req, timeout=5) as res:
                 data = json.loads(res.read().decode('utf-8'))
