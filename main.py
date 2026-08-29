@@ -435,6 +435,15 @@ def start_server():
         except:
             pass
 
+        # Remove stale session.lock files if any past crash left them behind
+        for world_folder in ["world", "world_nether", "world_the_end"]:
+            lock_file = os.path.join(MC_DIR, world_folder, "session.lock")
+            if os.path.exists(lock_file):
+                try:
+                    os.remove(lock_file)
+                except:
+                    pass
+
         log_path = os.path.join(MC_DIR, "logs", "latest.log")
         os.makedirs(os.path.join(MC_DIR, "logs"), exist_ok=True)
         # Clear previous session log so old crash text doesn't trigger false alerts
