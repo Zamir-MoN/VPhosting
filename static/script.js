@@ -1381,17 +1381,20 @@ async function fetchPlayers() {
         }
 
         // --- HISTORY SECTION ---
-        const historyPlayers = (data.all_players || []).filter(name => 
-            !data.online_players.some(op => op.name === name)
-        );
+        const onlineNames = (data.online_players || []).map(op => (typeof op === 'object' ? op.name : op).toLowerCase());
+        const historyPlayers = (data.all_players || []).filter(p => {
+            const pName = (typeof p === 'object' ? p.name : p).toLowerCase();
+            return !onlineNames.includes(pName);
+        });
 
         if (historyPlayers.length > 0) {
             const h = document.createElement('h3');
             h.style.cssText = 'margin: 25px 0 10px; font-size: 0.9rem; color: #8892a0; display: flex; align-items: center; gap: 8px;';
             h.innerHTML = `<i data-lucide="history" style="width:14px;height:14px"></i> Player History`;
             playerList.appendChild(h);
-            historyPlayers.forEach(name => {
-                playerList.appendChild(createPlayerCard({name: name}, false));
+            historyPlayers.forEach(p => {
+                const pObj = (typeof p === 'object') ? p : { name: p };
+                playerList.appendChild(createPlayerCard(pObj, false));
             });
         }
         
