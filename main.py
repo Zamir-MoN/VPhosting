@@ -151,32 +151,17 @@ def get_stats():
         remaining = -1
         backup_percent = 0
     
-    # Get Online Players by reading latest.log events or query
+    # Get Online Players by reading latest.log events cleanly without console command spam
     online_players = []
     if is_running:
         log_path = os.path.join(MC_DIR, "logs", "latest.log")
         if os.path.exists(log_path):
             try:
-                # 1. First attempt: Ask server to list players
-                if shutil.which("tmux"):
-                    try:
-                        subprocess.run(["tmux", "send-keys", "-t", "mc_server", "list", "ENTER"], stderr=subprocess.DEVNULL)
-                    except:
-                        pass
-                elif MC_PROCESS and MC_PROCESS.stdin:
-                    try:
-                        MC_PROCESS.stdin.write(b"list\n")
-                        MC_PROCESS.stdin.flush()
-                    except:
-                        pass
-
-                # 2. Parse latest.log for player joins, leaves, and list outputs
                 with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
                     lines = f.readlines()
                     
-                # Scan backwards for latest 'There are X of Y players online:' or join/quit lines
                 current_active = set()
-                for line in lines[-200:]:
+                for line in lines[-300:]:
                     if "logged in with entity id" in line or "joined the game" in line:
                         parts = line.split("INFO]: ")
                         if len(parts) > 1:
@@ -192,9 +177,8 @@ def get_stats():
                     elif "players online:" in line:
                         names_part = line.split("players online:")[1].strip()
                         if names_part:
-                            current_active = set([n.strip() for n in names_part.split(',') if n.strip()])
-                        else:
-                            current_active = set()
+                            for n in names_part.split(','):
+                                if n.strip(): current_active.add(n.strip())
 
                 online_players = list(current_active)
             except Exception as e:

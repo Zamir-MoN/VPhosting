@@ -283,8 +283,13 @@ async function fetchConsoleLogs() {
                 if (startBtn) {
                     startBtn.classList.remove('is-loading');
                     startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Start';
-                    lucide.createIcons();
                 }
+                const restartBtn = document.querySelector('button[onclick="apiCall(\'/api/restart\')"]');
+                if (restartBtn) {
+                    restartBtn.classList.remove('is-loading');
+                    restartBtn.innerHTML = '<i data-lucide="refresh-cw" style="width:16px;height:16px;"></i> Restart';
+                }
+                lucide.createIcons();
                 fetchStats();
             }
 
