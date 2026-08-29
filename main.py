@@ -715,9 +715,12 @@ java -Xms4096M -Xmx{alloc_mb}M \\
 async def stop_server():
     global MC_PROCESS
     try:
-        # 1. Attempt graceful Minecraft stop command
+        # 1. Attempt graceful Minecraft stop command first via tmux or stdin
         if shutil.which("tmux"):
-            subprocess.run(["tmux", "send-keys", "-t", "mc_server", "stop", "ENTER"], stderr=subprocess.DEVNULL)
+            try:
+                subprocess.run(["tmux", "send-keys", "-t", "mc_server", "stop", "ENTER"], stderr=subprocess.DEVNULL)
+            except:
+                pass
         elif MC_PROCESS and MC_PROCESS.stdin:
             try:
                 MC_PROCESS.stdin.write(b"stop\n")
@@ -725,9 +728,10 @@ async def stop_server():
             except:
                 pass
 
+        # Give server 1.5 seconds to save world cleanly
         await asyncio.sleep(1.5)
 
-        # 2. Terminate tracked subprocess
+        # 2. Terminate tracked direct subprocess if present
         if MC_PROCESS:
             try:
                 MC_PROCESS.terminate()
@@ -736,22 +740,43 @@ async def stop_server():
                 pass
             MC_PROCESS = None
 
-        # 3. Kill any remaining java/tmux instances safely using pkill / psutil
+        # 3. Kill all detected Minecraft Java processes directly via psutil
+        try:
+            procs = get_mc_processes()
+            for p in procs:
+                try:
+                    p.terminate()
+                except:
+                    pass
+            # Force kill if still lingering
+            for p in procs:
+                try:
+                    p.kill()
+                except:
+                    pass
+        except:
+            pass
+
+        # 4. Kill tmux session
         if shutil.which("tmux"):
             try:
                 subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
             except:
                 pass
 
+        # 5. OS-level fallback kills
         try:
+            if shutil.which("fuser"):
+                subprocess.run(["fuser", "-k", "25565/tcp"], stderr=subprocess.DEVNULL)
             if shutil.which("pkill"):
                 subprocess.run(["pkill", "-9", "-f", "server.jar"], stderr=subprocess.DEVNULL)
+                subprocess.run(["pkill", "-9", "-f", "mc_server"], stderr=subprocess.DEVNULL)
             elif shutil.which("killall"):
                 subprocess.run(["killall", "-9", "java"], stderr=subprocess.DEVNULL)
         except:
             pass
 
-        # 4. Clean up lock files
+        # 6. Clean up world lock files so server can restart without lock collisions
         for world_folder in ["world", "world_nether", "world_the_end"]:
             lock_file = os.path.join(MC_DIR, world_folder, "session.lock")
             if os.path.exists(lock_file):
@@ -765,7 +790,7 @@ async def stop_server():
 @app.post("/api/restart")
 async def restart_server():
     await stop_server()
-    await asyncio.sleep(1.5)
+    await asyncio.sleep(2)
     return await start_server()
 
 @app.post("/api/delete")
