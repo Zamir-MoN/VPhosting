@@ -526,16 +526,16 @@ async def start_server():
 
         # If server.jar exists but start.sh is missing, auto-create optimized start.sh
         if not os.path.exists(start_script) and os.path.exists(server_jar):
-            # Calculate optimal RAM (assign up to 8GB or 70% of total VPS RAM)
+            # Calculate optimal RAM (assign up to 10GB or 75% of total VPS RAM)
             try:
                 import psutil
                 total_mb = int(psutil.virtual_memory().total / (1024 * 1024))
-                alloc_mb = min(8192, max(2048, int(total_mb * 0.70)))
+                alloc_mb = min(10240, max(4096, int(total_mb * 0.75)))
             except:
-                alloc_mb = 4096
+                alloc_mb = 10240
                 
             optimized_sh = f"""#!/bin/bash
-java -Xms{alloc_mb}M -Xmx{alloc_mb}M \\
+java -Xms4096M -Xmx{alloc_mb}M \\
   --add-modules=jdk.incubator.vector \\
   -Djava.net.preferIPv4Stack=true \\
   -XX:+UseG1GC \\
@@ -1259,30 +1259,31 @@ if [ -f "run.sh" ]; then
     sed -i 's/read -p.*/echo "Server stopped."/g' run.sh
     ./run.sh
 elif [ -f "server.jar" ]; then
-    java -Xms4096M -Xmx6144M \
-      --add-modules=jdk.incubator.vector \
-      -XX:+UseG1GC \
-      -XX:+ParallelRefProcEnabled \
-      -XX:MaxGCPauseMillis=200 \
-      -XX:+UnlockExperimentalVMOptions \
-      -XX:+DisableExplicitGC \
-      -XX:+AlwaysPreTouch \
-      -XX:G1NewSizePercent=30 \
-      -XX:G1MaxNewSizePercent=40 \
-      -XX:G1ReservePercent=20 \
-      -XX:G1HeapWastePercent=5 \
-      -XX:G1MixedGCCountTarget=4 \
-      -XX:InitiatingHeapOccupancyPercent=15 \
-      -XX:G1MixedGCLiveThresholdPercent=90 \
-      -XX:G1RSetUpdatingPauseTimePercent=5 \
-      -XX:SurvivorRatio=32 \
-      -XX:+PerfDisableSharedMem \
-      -XX:MaxTenuringThreshold=1 \
-      -Dusing.aikars.flags=https://mcflags.emc.gs \
-      -Daikars.new.flags=true \
+    java -Xms4096M -Xmx10240M \\
+      --add-modules=jdk.incubator.vector \\
+      -Djava.net.preferIPv4Stack=true \\
+      -XX:+UseG1GC \\
+      -XX:+ParallelRefProcEnabled \\
+      -XX:MaxGCPauseMillis=200 \\
+      -XX:+UnlockExperimentalVMOptions \\
+      -XX:+DisableExplicitGC \\
+      -XX:+AlwaysPreTouch \\
+      -XX:G1NewSizePercent=30 \\
+      -XX:G1MaxNewSizePercent=40 \\
+      -XX:G1ReservePercent=20 \\
+      -XX:G1HeapWastePercent=5 \\
+      -XX:G1MixedGCCountTarget=4 \\
+      -XX:InitiatingHeapOccupancyPercent=15 \\
+      -XX:G1MixedGCLiveThresholdPercent=90 \\
+      -XX:G1RSetUpdatingPauseTimePercent=5 \\
+      -XX:SurvivorRatio=32 \\
+      -XX:+PerfDisableSharedMem \\
+      -XX:MaxTenuringThreshold=1 \\
+      -Dusing.aikars.flags=https://mcflags.emc.gs \\
+      -Daikars.new.flags=true \\
       -jar server.jar nogui
 elif ls forge-*.jar 1> /dev/null 2>&1; then
-    java -Xmx4096M -Xms4096M -jar forge-*.jar nogui
+    java -Xmx10240M -Xms4096M -jar forge-*.jar nogui
 else
     echo "No executable jar found!"
 fi
