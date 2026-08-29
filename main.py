@@ -116,12 +116,7 @@ def check_status():
 
 @app.get("/api/stats")
 def get_stats():
-    is_running = False
-    try:
-        subprocess.check_output(["tmux", "has-session", "-t", "mc_server"], stderr=subprocess.STDOUT)
-        is_running = True
-    except:
-        pass
+    is_running = is_server_running()
     
     # Real VPS Hardware Metrics
     try:
@@ -380,13 +375,36 @@ async def manual_gdrive_backup(background_tasks: BackgroundTasks):
     background_tasks.add_task(run_backup)
     return {"status": "success", "message": "Cloud backup started in background."}
 
+# Global process tracker if tmux is missing
+MC_PROCESS = None
+
+def is_server_running():
+    global MC_PROCESS
+    # Check tmux first
+    if shutil.which("tmux"):
+        try:
+            subprocess.check_output(["tmux", "has-session", "-t", "mc_server"], stderr=subprocess.STDOUT)
+            return True
+        except:
+            pass
+    # Check direct subprocess if running
+    if MC_PROCESS and MC_PROCESS.poll() is None:
+        return True
+    # Check by inspecting java process with server.jar
+    try:
+        if shutil.which("pgrep"):
+            pids = subprocess.check_output(["pgrep", "-f", "server.jar"]).decode().strip()
+            if pids:
+                return True
+    except:
+        pass
+    return False
+
 @app.post("/api/start")
 def start_server():
-    try:
-        subprocess.check_output(["tmux", "has-session", "-t", "mc_server"], stderr=subprocess.STDOUT)
+    global MC_PROCESS
+    if is_server_running():
         return {"status": "error", "message": "Server is already running."}
-    except Exception:
-        pass
 
     try:
         start_script = os.path.join(MC_DIR, "start.sh")
@@ -412,18 +430,36 @@ def start_server():
         if os.path.exists(log_path):
             open(log_path, 'w').close()
             
-        cmd = f"cd {MC_DIR} && bash start.sh"
-        subprocess.run(["tmux", "new-session", "-d", "-s", "mc_server", cmd], check=True)
+        # Launch with tmux if installed, otherwise fallback to direct background process
+        if shutil.which("tmux"):
+            cmd = f"cd {MC_DIR} && bash start.sh"
+            subprocess.run(["tmux", "new-session", "-d", "-s", "mc_server", cmd], check=True)
+        else:
+            # Direct background process fallback
+            cmd = ["bash", "start.sh"] if os.path.exists(start_script) else ["java", "-Xms1G", "-Xmx2G", "-jar", "server.jar", "nogui"]
+            log_file = open(log_path, "a")
+            MC_PROCESS = subprocess.Popen(cmd, cwd=MC_DIR, stdout=log_file, stderr=log_file, stdin=subprocess.PIPE)
+
         return {"status": "success", "message": "Server boot sequence initiated..."}
     except Exception as e:
         return {"status": "error", "message": f"Failed to start server: {str(e)}"}
 
 @app.post("/api/stop")
 async def stop_server():
+    global MC_PROCESS
     try:
-        subprocess.run(["tmux", "send-keys", "-t", "mc_server", "stop", "ENTER"], stderr=subprocess.DEVNULL)
-        await asyncio.sleep(2)
-        subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
+        if shutil.which("tmux"):
+            subprocess.run(["tmux", "send-keys", "-t", "mc_server", "stop", "ENTER"], stderr=subprocess.DEVNULL)
+            await asyncio.sleep(2)
+            subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
+        
+        if MC_PROCESS:
+            try:
+                MC_PROCESS.terminate()
+                MC_PROCESS = None
+            except:
+                pass
+                
         subprocess.run(["killall", "-9", "java"], stderr=subprocess.DEVNULL)
         return {"status": "success", "message": "Server forcefully stopped."}
     except Exception as e:
@@ -439,10 +475,9 @@ async def restart_server():
 async def delete_server():
     try:
         await stop_server()
-        await asyncio.sleep(3) # Give tmux and java time to fully exit
+        await asyncio.sleep(3)
         
         if os.path.exists(MC_DIR):
-            # Attempt to wipe content instead of the whole directory if possible to avoid some lock issues
             for item in os.listdir(MC_DIR):
                 item_path = os.path.join(MC_DIR, item)
                 try:
@@ -453,7 +488,6 @@ async def delete_server():
                 except Exception as e:
                     print(f"Failed to delete {item_path}: {e}")
             
-            # Ensure essential folders exist
             os.makedirs(os.path.join(MC_DIR, "plugins"), exist_ok=True)
             
         return {"status": "success", "message": "Server files completely wiped."}
@@ -466,20 +500,29 @@ def get_console():
     log_path = os.path.join(MC_DIR, "logs", "latest.log")
     if os.path.exists(log_path):
         try:
-            with open(log_path, "r", encoding="utf-8", errors="ignore") as f: return {"status": "success", "log": "".join(f.readlines()[-100:])}
-        except: return {"status": "error", "message": "Cannot read log file."}
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f: 
+                return {"status": "success", "log": "".join(f.readlines()[-100:])}
+        except: 
+            return {"status": "error", "message": "Cannot read log file."}
     return {"status": "error", "message": "Waiting for server logs..."}
 
 @app.post("/api/command")
 async def send_command(request: Request):
+    global MC_PROCESS
     cmd = (await request.json()).get("command", "")
     if not cmd: return {"status": "error", "message": "Command empty."}
     try:
-        # Use tmux send-keys for better reliability than RCON
-        subprocess.run(["tmux", "send-keys", "-t", "mc_server", cmd, "ENTER"], check=True)
-        return {"status": "success", "message": "Command sent to console."}
-    except:
-        return {"status": "error", "message": "Could not connect to console."}
+        if shutil.which("tmux"):
+            subprocess.run(["tmux", "send-keys", "-t", "mc_server", cmd, "ENTER"], check=True)
+            return {"status": "success", "message": "Command sent to console."}
+        elif MC_PROCESS and MC_PROCESS.stdin:
+            MC_PROCESS.stdin.write(f"{cmd}\n".encode())
+            MC_PROCESS.stdin.flush()
+            return {"status": "success", "message": "Command sent to console."}
+        else:
+            return {"status": "error", "message": "Server console not active."}
+    except Exception as e:
+        return {"status": "error", "message": f"Could not send command: {str(e)}"}
 
 @app.get("/api/files/list")
 def list_files(path: str = ""):
