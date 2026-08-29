@@ -301,6 +301,7 @@ setInterval(fetchStats, 2500);
 const logDiv = document.getElementById('log');
 let autoScroll = true;
 let isWaitingForStart = false;
+let startSessionTime = 0;
 let startLoadingToast = null;
 
 async function fetchConsoleLogs() {
@@ -316,11 +317,15 @@ async function fetchConsoleLogs() {
                 }
             }
             
-            // Check if server boot completed (must also be verified online)
+            // Only evaluate boot completion if we have been waiting for at least 3 seconds
+            const elapsedSinceAction = (Date.now() - startSessionTime) / 1000;
             const isBootDoneText = data.log.includes('Done (') || data.log.includes('For help, type "help"') || data.log.includes('Timings Reset');
-            if (isWaitingForStart && isBootDoneText) {
+            
+            if (isWaitingForStart && elapsedSinceAction > 3 && isBootDoneText) {
                 // Double-check with stats that server process is truly active
-                fetch('/api/stats').then(r => r.json()).then(statsData => {
+                try {
+                    const statsRes = await fetch('/api/stats');
+                    const statsData = await statsRes.json();
                     if (statsData.status === 'online') {
                         if (startLoadingToast) {
                             startLoadingToast.remove();
@@ -332,11 +337,13 @@ async function fetchConsoleLogs() {
                         const startBtn = document.querySelector('button[onclick="apiCall(\'/api/start\')"]');
                         if (startBtn) {
                             startBtn.classList.remove('is-loading');
+                            startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Start';
                             startBtn.disabled = true;
                         }
                         const restartBtn = document.querySelector('button[onclick="apiCall(\'/api/restart\')"]');
                         if (restartBtn) {
                             restartBtn.classList.remove('is-loading');
+                            restartBtn.innerHTML = '<i data-lucide="refresh-cw" style="width:16px;height:16px;"></i> Restart';
                             restartBtn.disabled = false;
                         }
                         const stopBtn = document.querySelector('button[onclick="apiCall(\'/api/stop\')"]');
@@ -345,24 +352,30 @@ async function fetchConsoleLogs() {
                         lucide.createIcons();
                         fetchStats();
                     }
-                }).catch(() => {});
+                } catch (err) {}
             }
 
             // Check if server failed / crashed on boot
-            if (isWaitingForStart && (data.log.includes('Address already in use') || data.log.includes('UnsupportedClassVersionError') || data.log.includes('Error: Unable to access jarfile'))) {
+            if (isWaitingForStart && elapsedSinceAction > 2 && (data.log.includes('Address already in use') || data.log.includes('UnsupportedClassVersionError') || data.log.includes('Error: Unable to access jarfile') || data.log.includes('Exception in thread "main"'))) {
                 if (startLoadingToast) {
                     startLoadingToast.remove();
                     startLoadingToast = null;
                 }
-                showToast("Startup issue detected in console logs. Check terminal stream.", "error");
+                showToast("Startup error detected in console logs. Check terminal stream.", "error");
                 isWaitingForStart = false;
                 
                 const startBtn = document.querySelector('button[onclick="apiCall(\'/api/start\')"]');
                 if (startBtn) {
                     startBtn.classList.remove('is-loading');
                     startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Start';
-                    lucide.createIcons();
+                    startBtn.disabled = false;
                 }
+                const restartBtn = document.querySelector('button[onclick="apiCall(\'/api/restart\')"]');
+                if (restartBtn) {
+                    restartBtn.classList.remove('is-loading');
+                    restartBtn.innerHTML = '<i data-lucide="refresh-cw" style="width:16px;height:16px;"></i> Restart';
+                }
+                lucide.createIcons();
                 fetchStats();
             }
         }
@@ -378,10 +391,11 @@ if (logDiv) {
 
 document.getElementById('consoleInput').addEventListener('keypress', async function (e) {
     if (e.key === 'Enter') {
-        const cmd = e.target.value;
-        if (!cmd) return;
-        apiCall('/api/command', { command: cmd });
-        e.target.value = '';
+        const cmd = this.value.trim();
+        if (cmd) {
+            this.value = '';
+            await apiCall('/api/command', { command: cmd });
+        }
     }
 });
 
@@ -401,6 +415,7 @@ async function apiCall(endpoint, body = null) {
         if (endpoint === '/api/start') { 
             msg = "Booting Minecraft Engine (Generating spawn & preparing chunks)..."; 
             isWaitingForStart = true;
+            startSessionTime = Date.now();
             if (startBtn) {
                 startBtn.classList.add('is-loading');
                 startBtn.innerHTML = '<i data-lucide="loader" class="spin-icon" style="width:16px;height:16px;"></i> Starting...';
@@ -428,6 +443,7 @@ async function apiCall(endpoint, body = null) {
         if (endpoint === '/api/restart') { 
             msg = "Rebooting Minecraft Server (Safely cycling engine)..."; 
             isWaitingForStart = true;
+            startSessionTime = Date.now();
             if (restartBtn) {
                 restartBtn.classList.add('is-loading');
                 restartBtn.innerHTML = '<i data-lucide="loader" class="spin-icon" style="width:16px;height:16px;"></i> Restarting...';
@@ -491,8 +507,8 @@ async function apiCall(endpoint, body = null) {
             restartBtn.innerHTML = '<i data-lucide="refresh-cw" style="width:16px;height:16px;"></i> Restart';
             lucide.createIcons();
         }
-        showToast("Network error or connection lost.", "error");
-        isWaitingForStart = false; 
+        showToast("Operation failed: " + error.message, 'error');
+        isWaitingForStart = false;
     }
 }
 
