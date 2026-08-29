@@ -1,169 +1,152 @@
-# ⚡ Valqore Hosting — Complete Technical Reference & Setup Guide
+# 🚀 Valqore Hosting Panel — Complete Management & VPS Guide
 
-This document contains full documentation for the **Valqore Hosting Minecraft Game Panel**, including architecture, deployment instructions, features, API reference, and troubleshooting steps.
-
----
-
-## 📌 Project Overview
-
-- **Repository**: [https://github.com/Zamir-MoN/VPhosting.git](https://github.com/Zamir-MoN/VPhosting.git)
-- **Default Branch**: `main`
-- **Application Stack**:
-  - **Backend**: Python 3.12+ with FastAPI & Uvicorn (managed via `systemd`).
-  - **Frontend**: Vanilla ES6+ JavaScript, Responsive CSS3 Grid/Flexbox, Lucide Icons, GSAP Animations.
-  - **Game Engine**: Purpur / Paper / Fabric / Forge / NeoForge / Vanilla (Port `25565`).
-  - **Web Dashboard**: Port `8090` (Direct or proxied via Nginx).
-  - **Video Engine**: Seamless Enchanted Sword live background wallpaper (`static/bg-video.mp4`).
+Welcome to the comprehensive reference guide for **Valqore Hosting**, a modern, high-performance Minecraft Server Management Engine with automated 1-line deployment, live resource telemetry, real-time interactive terminal, automated Google Drive cloud backups, multi-engine marketplace, and granular player controls.
 
 ---
 
-## 🚀 Quick Deployment & Server Updates
+## ⚡ 1-Line Super-Fast VPS Deployment
 
-Whenever you make changes or want to sync the latest version to your VPS:
+To install and run Valqore Hosting on any **fresh Ubuntu (20.04/22.04/24.04) or Debian (11/12) VPS**, connect via SSH and run:
 
 ```bash
-# 1. Navigate to the project directory
+curl -sSL https://raw.githubusercontent.com/Zamir-MoN/VPhosting/main/install.sh | sudo bash
+```
+
+### 🛡️ Open Required Firewall Ports
+Run this command block on your VPS to ensure all panel and game ports are open:
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 8090/tcp
+sudo ufw allow 25565/tcp
+sudo ufw allow 25565/udp
+sudo ufw allow 19132/udp
+sudo ufw allow 24454/udp
+sudo ufw --force enable
+```
+
+---
+
+## 🌐 Port Mapping & Cloud Firewall Reference
+
+Ensure the following inbound rules are permitted in your Cloud Provider's console (AWS Security Groups, Oracle Cloud VCN, DigitalOcean Firewall, Hetzner, etc.):
+
+| Port | Protocol | Service | Description |
+| :--- | :---: | :--- | :--- |
+| **`22`** | TCP | SSH Terminal | Remote command-line administration |
+| **`8090`** | TCP | Web Dashboard | Access Valqore Panel (`http://YOUR_VPS_IP:8090`) |
+| **`25565`** | TCP & UDP | Minecraft Java | Default Minecraft Java game server connection |
+| **`19132`** | UDP | GeyserMC / Bedrock | Crossplay for Mobile (iOS/Android), Xbox, PlayStation, Switch |
+| **`24454`** | UDP | Simple Voice Chat | In-game proximity voice communication |
+| **`8123`** | TCP | BlueMap / Dynmap | Optional browser-based 3D live world map |
+
+---
+
+## 🖥️ Panel Features & Tab-by-Tab Walkthrough
+
+### 1. 📊 Dashboard Tab
+* **Live Server Telemetry**:
+  * **SERVER RAM**: Process-level RSS telemetry vs. allocated Java memory (`-Xmx10240M`). Displays `0 / 10240 MB` when stopped.
+  * **SERVER CPU**: Accurate multi-core normalized CPU utilization percentage.
+  * **PLAYERS**: Current live connected players vs. server capacity (e.g. `0/50`).
+  * **SERVER PING**: Real-time network latency and connection health indicator.
+* **Power Management**:
+  * **START**: Boots the Minecraft engine inside a dedicated, detached `tmux` session with Aikar G1GC flags.
+  * **STOP**: Gracefully executes `/stop`, saves world data, and forcefully terminates any lingering Java worker threads.
+  * **RESTART**: Safely cycles the server process with automated cleanup of stale `session.lock` files.
+* **Interactive Terminal**:
+  * Real-time console logs streamed from `latest.log`.
+  * Send live commands (`op`, `gamemode`, `give`, `whitelist`, etc.) directly into the console.
+
+---
+
+### 2. 📁 Files Tab
+* **Web-Based File Explorer**:
+  * Navigate folders with breadcrumbs and top **`← BACK`** button.
+  * In-browser code and config editor for `server.properties`, `start.sh`, `bukkit.yml`, `paper-global.yml`, etc.
+  * Upload, download, and delete server files and configs with 1 click.
+
+---
+
+### 3. 🧩 Plugins Tab
+* **Integrated Modrinth & Spiget Marketplace**:
+  * Search thousands of plugins directly from the dashboard.
+  * 1-Click automatic installation directly into the `/mc_server/plugins/` directory.
+  * Automatic Minecraft version compatibility matching.
+
+---
+
+### 4. ⚙️ Installer Tab
+* **Multi-Engine Universal Installer**:
+  * **Purpur**: High-performance Paper fork with extensive gameplay customization.
+  * **PaperMC**: The gold standard for performance, stability, and plugin support.
+  * **Fabric**: Lightweight, bleeding-edge mod loader for modern Minecraft versions.
+  * **Forge / NeoForge**: Heavy modpack compatibility.
+  * **Vanilla**: Official Mojang release binaries.
+
+---
+
+### 5. 👥 Players Tab
+* **Player Management & Roles**:
+  * **Online Now**: Real-time list of connected players.
+  * **Player History**: Cached log of all past visitors.
+  * **Operator Control**: Dynamic **`★ OP (Active)`** button with purple glow.
+  * **Ban Control**: Dynamic **`Ban / Unban`** toggle with red glow.
+  * **Gamemode Switcher**: Instant switching between **Survival**, **Creative**, and **Spectator** modes.
+  * **Kill Action**: Instant player reset command.
+
+---
+
+### 6. 🌍 Worlds Tab
+* **World Management**:
+  * **Regenerate World**: Safely wipe and re-seed the Overworld, Nether, and End dimensions.
+  * **Upload Custom World**: Upload a `.zip` file of any custom map (e.g., custom spawn or adventure map) with automatic extraction.
+
+---
+
+### 7. ☁️ Backups Tab
+* **Google Drive Automated Cloud Sync**:
+  * Link Google Drive using OAuth 2.0 (`client_secrets.json`).
+  * Automated cloud backups scheduled periodically.
+  * Manual 1-click cloud snapshot generation.
+
+---
+
+## 🔄 Daily VPS Maintenance & Admin Commands
+
+```bash
+# 1. Update the panel to latest version from GitHub
 cd /home/ubuntu/valqore
-
-# 2. Pull the latest code from GitHub
 git pull origin main
-
-# 3. Restart the panel background service
 sudo systemctl restart valqore
 
-# 4. Check service status to ensure everything is running cleanly
+# 2. Check panel background service status
 sudo systemctl status valqore
+
+# 3. View live background system logs
+sudo journalctl -u valqore -f
+
+# 4. Restart panel service
+sudo systemctl restart valqore
+
+# 5. Stop panel service
+sudo systemctl stop valqore
 ```
+
+*(Note: If logged in as `root`, replace `/home/ubuntu/valqore` with `/root/valqore`)*.
 
 ---
 
-## ⚙️ Initial VPS Setup Instructions
+## 🎮 Recommended Settings for 50 Players
 
-### 1. System Requirements & Dependencies
-
-```bash
-# Update Ubuntu package index
-sudo apt update && sudo apt upgrade -y
-
-# Install Python3, pip, venv, and Java 21 (required for Minecraft 1.20.5+)
-sudo apt install -y python3 python3-pip python3-venv openjdk-21-jre-headless git tmux curl
-```
-
-### 2. Clone and Setup Environment
-
-```bash
-# Clone the repository into your home directory
-cd /home/ubuntu
-git clone https://github.com/Zamir-MoN/VPhosting.git valqore
-cd /home/ubuntu/valqore
-
-# Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install required Python packages
-pip install --upgrade pip
-pip install fastapi uvicorn requests psutil mcrcon google-auth google-auth-oauthlib google-api-python-client
-```
-
-### 3. Setup Systemd Service (`valqore.service`)
-
-Create the service file:
-```bash
-sudo nano /etc/systemd/system/valqore.service
-```
-
-Paste the following configuration:
-```ini
-[Unit]
-Description=Valqore Hosting Minecraft Panel Service
-After=network.target
-
-[Service]
-User=ubuntu
-WorkingDirectory=/home/ubuntu/valqore
-ExecStart=/home/ubuntu/valqore/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8090
-Restart=always
-RestartSec=5
-Environment=PATH=/usr/bin:/bin:/usr/local/bin:/home/ubuntu/valqore/venv/bin
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start the service:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable valqore
-sudo systemctl start valqore
-```
-
-### 4. Firewall & Port Access (AWS Security Group / UFW)
-
-Ensure the following inbound rules are open in your **AWS EC2 Security Group** and **UFW**:
-- **Port 22 (TCP)**: SSH Access.
-- **Port 8090 (TCP)**: Valqore Web Management Panel.
-- **Port 25565 (TCP/UDP)**: Minecraft Game Server Default Port.
-
----
-
-## 🎨 Features & System Architecture
-
-### 1. Dashboard & Power Lifecycle
-- **Real-Time Live Server Ping Meter**: Direct `/api/ping` probe calculating round-trip millisecond latency.
-- **Hardware Telemetry**: Real-time VPS RAM usage (MB and %), CPU load, Core count, and Disk storage.
-- **Session-Aware Process Management**: `START`, `STOP`, and `RESTART` buttons protected by process state verification to avoid false online notifications.
-- **Live Terminal Stream**: Real-time console logs with auto-scroll and command input.
-
-### 2. Plugin Marketplace (Modrinth + SpigotMC Multi-Index)
-- **Live Debounced Search**: Searches as you type with intelligent keyword tokenization.
-- **Typo Tolerance**: Auto-corrects common typos (e.g. `vioce` → `voice`, `luckperm` → `luckperms`, `drivebackup` → `drivebackupv2`).
-- **Smart Version Matching**: Detects active server version (e.g. `1.21.1`) and automatically downloads compatible plugin release builds.
-- **Installed Plugins Manager**: View, count, and remove installed `.jar` files with 1 click.
-
-### 3. File Manager & Asset Explorer
-- **Multi-File Drag & Drop**: Full-page glowing dropzone supporting simultaneous multi-file parallel uploads.
-- **Interactive Breadcrumb Navigation**: Path trail (e.g. `/root / plugins`) with clickable directory jumps.
-- **Header Back Button**: Dedicated `← Back` button when inside subdirectories.
-- **Integrated Code Editor**: Edit configuration files (`server.properties`, `bukkit.yml`, `.yml`, `.json`, `.txt`) directly from the browser.
-
-### 4. Software & Engine Installer
-- One-click deployment for:
-  - **Vanilla** (Official Mojang Server)
-  - **PaperMC** (High-Performance Plugin Engine)
-  - **Fabric** (Lightweight Modern Modding)
-  - **Forge** (Classic Modpack Ecosystem)
-  - **NeoForge** (Next-Gen Modding Engine)
-
-### 5. Player & World Management
-- **Live Player Roster**: Tracks connected players from log events without console command spam.
-- **Player Actions**: Kick, ban, op, and gamemode controls.
-- **World Management**: Upload world `.zip` archives or trigger clean world regeneration.
-
----
-
-## 🛠️ API Endpoints Summary
-
-| Endpoint | Method | Description |
-| :--- | :---: | :--- |
-| `/api/ping` | `GET` | Ultra-fast network latency probe |
-| `/api/stats` | `GET` | Telemetry (RAM, CPU, Disk, Online players, Power state) |
-| `/api/start` | `POST` | Boot Minecraft server with optimized Aikar JVM flags |
-| `/api/stop` | `POST` | Safely shutdown engine and clean up process locks |
-| `/api/restart` | `POST` | Controlled stop-and-start reboot sequence |
-| `/api/console` | `GET` | Tail console output from `latest.log` |
-| `/api/command` | `POST` | Send command to the Minecraft server console |
-| `/api/plugins/search` | `GET` | Multi-index plugin search (Modrinth + Spigot) |
-| `/api/plugins/install` | `POST` | Version-matched 1-click plugin downloader |
-| `/api/plugins/installed`| `GET` | List all active plugins in `/mc_server/plugins/` |
-| `/api/files/list` | `GET` | File and directory browser |
-| `/api/files/upload` | `POST` | Multi-file uploader |
-| `/api/files/delete` | `POST` | File deletion endpoint |
-
----
-
-## 🔒 Security Best Practices
-
-1. **RCON Protection**: Keep RCON port closed to external traffic; only allow loopback `127.0.0.1`.
-2. **Path Traversal Guards**: The backend validates all file operations within `/home/ubuntu/valqore/mc_server` using `get_safe_path()`.
-3. **Session Lock Cleanup**: Automatically clears `session.lock` files during crashes to prevent world corruption.
+To maintain **20.0 TPS** with 50 concurrent players:
+1. **Engine**: Install **Purpur** or **Paper** from the **INSTALLER** tab.
+2. **RAM**: Configured at **10 GB (10240 MB)** with Aikar G1GC flags.
+3. **`server.properties`** (in **FILES** tab):
+   ```properties
+   view-distance=6
+   simulation-distance=4
+   max-players=50
+   network-compression-threshold=256
+   ```
+4. **Pre-generation**: Install the `Chunky` plugin from the **PLUGINS** tab and run `/chunky radius 5000` then `/chunky start`.
