@@ -437,6 +437,8 @@ def start_server():
 
         log_path = os.path.join(MC_DIR, "logs", "latest.log")
         os.makedirs(os.path.join(MC_DIR, "logs"), exist_ok=True)
+        # Clear previous session log so old crash text doesn't trigger false alerts
+        open(log_path, "w").close()
 
         # Find binary paths
         bash_bin = shutil.which("bash") or "/bin/bash"
