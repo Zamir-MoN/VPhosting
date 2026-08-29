@@ -1458,4 +1458,19 @@ function togglePlayerDetail(element) {
     const card = element.closest('.player-card');
     card.classList.toggle('expanded');
 }
-// Modal system removed in favor of Toast notifications.
+
+// Background Video Auto-play Insurance
+document.addEventListener('DOMContentLoaded', () => {
+    const video = document.getElementById('bgVideo');
+    if (video) {
+        video.muted = true;
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(() => {
+                // If browser autoplay policy paused it, play on first user interaction
+                window.addEventListener('click', () => video.play(), { once: true });
+                window.addEventListener('touchstart', () => video.play(), { once: true });
+            });
+        }
+    }
+});
