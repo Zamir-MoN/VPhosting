@@ -437,8 +437,8 @@ def start_server():
 
         # Launch with tmux if installed, otherwise fallback to direct background process
         if os.path.exists(tmux_bin):
-            cmd = f"cd {MC_DIR} && {bash_bin} start.sh"
-            subprocess.run([tmux_bin, "new-session", "-d", "-s", "mc_server", cmd], check=True)
+            # Use -c to set working directory properly
+            subprocess.run([tmux_bin, "new-session", "-d", "-s", "mc_server", "-c", MC_DIR, f"{bash_bin} start.sh"], check=True)
         else:
             # Direct background process fallback
             if os.path.exists(start_script) and os.path.exists(bash_bin):
@@ -455,11 +455,12 @@ def start_server():
 @app.post("/api/stop")
 async def stop_server():
     global MC_PROCESS
+    tmux_bin = shutil.which("tmux") or "/usr/bin/tmux"
     try:
-        if shutil.which("tmux"):
-            subprocess.run(["tmux", "send-keys", "-t", "mc_server", "stop", "ENTER"], stderr=subprocess.DEVNULL)
+        if os.path.exists(tmux_bin):
+            subprocess.run([tmux_bin, "send-keys", "-t", "mc_server", "stop", "ENTER"], stderr=subprocess.DEVNULL)
             await asyncio.sleep(2)
-            subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
+            subprocess.run([tmux_bin, "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
         
         if MC_PROCESS:
             try:
@@ -505,14 +506,29 @@ async def delete_server():
 # --- CONSOLE & FILES ---
 @app.get("/api/console")
 def get_console():
+    tmux_bin = shutil.which("tmux") or "/usr/bin/tmux"
     log_path = os.path.join(MC_DIR, "logs", "latest.log")
+    
+    # 1. Read from logs/latest.log if available
     if os.path.exists(log_path):
         try:
-            with open(log_path, "r", encoding="utf-8", errors="ignore") as f: 
-                return {"status": "success", "log": "".join(f.readlines()[-100:])}
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                content = "".join(f.readlines()[-100:])
+                if content.strip():
+                    return {"status": "success", "log": content}
         except: 
-            return {"status": "error", "message": "Cannot read log file."}
-    return {"status": "error", "message": "Waiting for server logs..."}
+            pass
+
+    # 2. Fallback to tmux capture-pane if latest.log is not written yet
+    if os.path.exists(tmux_bin):
+        try:
+            output = subprocess.check_output([tmux_bin, "capture-pane", "-pt", "mc_server", "-S", "-100"], stderr=subprocess.DEVNULL).decode('utf-8', errors='ignore')
+            if output.strip():
+                return {"status": "success", "log": output}
+        except:
+            pass
+
+    return {"status": "success", "log": "Connecting to Minecraft console..."}
 
 @app.post("/api/command")
 async def send_command(request: Request):
