@@ -590,26 +590,39 @@ java -Xms{alloc_mb}M -Xmx{alloc_mb}M \\
         tmux_bin = shutil.which("tmux") or "/usr/bin/tmux"
         java_bin = shutil.which("java") or "/usr/bin/java"
 
-        # Launch server process directly to ensure stdout/stderr are immediately streamed to latest.log
-        log_file = open(log_path, "a", buffering=1)
-        
+        # Determine start command
         if os.path.exists(start_script) and os.path.exists(bash_bin):
+            run_cmd_str = f"{bash_bin} {start_script}"
             cmd = [bash_bin, start_script]
         else:
+            run_cmd_str = f"{java_bin} -Xms1G -Xmx2G -jar {server_jar} nogui"
             cmd = [java_bin, "-Xms1G", "-Xmx2G", "-jar", server_jar, "nogui"]
             
         # Ensure full environment with PATH containing Java
         env = os.environ.copy()
         env["PATH"] = f"/usr/bin:/bin:/usr/local/bin:{env.get('PATH', '')}"
 
-        MC_PROCESS = subprocess.Popen(
-            cmd, 
-            cwd=MC_DIR, 
-            stdout=log_file, 
-            stderr=subprocess.STDOUT, 
-            stdin=subprocess.PIPE,
-            env=env
-        )
+        # If tmux is installed, launch inside tmux session 'mc_server' so console is fully interactive & persistent
+        if shutil.which("tmux"):
+            try:
+                subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
+            except:
+                pass
+            
+            # Start tmux session and pipe output to latest.log as well
+            tmux_cmd = f"cd '{MC_DIR}' && {run_cmd_str} 2>&1 | tee -a '{log_path}'"
+            subprocess.Popen(["tmux", "new-session", "-d", "-s", "mc_server", "bash", "-c", tmux_cmd], env=env)
+        else:
+            # Fallback: direct subprocess Popen
+            log_file = open(log_path, "a", buffering=1)
+            MC_PROCESS = subprocess.Popen(
+                cmd, 
+                cwd=MC_DIR, 
+                stdout=log_file, 
+                stderr=subprocess.STDOUT, 
+                stdin=subprocess.PIPE,
+                env=env
+            )
 
         return {"status": "success", "message": "Server boot sequence initiated..."}
     except Exception as e:
@@ -727,18 +740,36 @@ async def send_command(request: Request):
     global MC_PROCESS
     cmd = (await request.json()).get("command", "")
     if not cmd: return {"status": "error", "message": "Command empty."}
-    try:
-        if shutil.which("tmux"):
-            subprocess.run(["tmux", "send-keys", "-t", "mc_server", cmd, "ENTER"], check=True)
-            return {"status": "success", "message": "Command sent to console."}
-        elif MC_PROCESS and MC_PROCESS.stdin:
+    
+    sent = False
+    error_detail = ""
+
+    # 1. Try sending via active tmux session
+    if shutil.which("tmux"):
+        try:
+            # Check if mc_server session exists first
+            check = subprocess.run(["tmux", "has-session", "-t", "mc_server"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if check.returncode == 0:
+                subprocess.run(["tmux", "send-keys", "-t", "mc_server", cmd, "ENTER"], check=True)
+                sent = True
+        except Exception as e:
+            error_detail = str(e)
+
+    # 2. Fallback to direct Python subprocess stdin
+    if not sent and MC_PROCESS and MC_PROCESS.stdin and MC_PROCESS.poll() is None:
+        try:
             MC_PROCESS.stdin.write(f"{cmd}\n".encode())
             MC_PROCESS.stdin.flush()
-            return {"status": "success", "message": "Command sent to console."}
-        else:
-            return {"status": "error", "message": "Server console not active."}
-    except Exception as e:
-        return {"status": "error", "message": f"Could not send command: {str(e)}"}
+            sent = True
+        except Exception as e:
+            error_detail = str(e)
+
+    # 3. Fallback to writing into active screen / stdin pipe if present
+    if sent:
+        return {"status": "success", "message": "Command sent to console."}
+    else:
+        # If server is running but tmux session was started under a different detached name or restarted
+        return {"status": "error", "message": f"Server console session not active. {error_detail}".strip()}
 
 @app.get("/api/files/list")
 def list_files(path: str = ""):
