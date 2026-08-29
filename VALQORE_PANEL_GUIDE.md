@@ -12,6 +12,13 @@ Connect to your VPS terminal via SSH and run this **single command**:
 curl -sSL https://raw.githubusercontent.com/Zamir-MoN/VPhosting/main/install.sh | sudo bash
 ```
 
+### 🔓 Inbound Ports to Open (Cloud Firewall):
+* **`22`** (TCP) — SSH Connection
+* **`8090`** (TCP) — Web Panel Dashboard
+* **`25565`** (TCP & UDP) — Minecraft Game Server
+* **`19132`** (UDP) — Bedrock / Mobile Crossplay *(Optional)*
+* **`24454`** (UDP) — Voice Chat Plugin *(Optional)*
+
 ---
 
 ## 🌐 2. Access Your Dashboard
