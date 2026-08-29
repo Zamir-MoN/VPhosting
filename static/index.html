@@ -53,12 +53,6 @@
                             </a>
                         </li>
                         <li role="none">
-                            <a href="#" class="pill nav-item main-nav" onclick="switchTab('console', this)">
-                                <i data-lucide="terminal" class="pill-icon"></i>
-                                <span class="pill-label">CONSOLE</span>
-                            </a>
-                        </li>
-                        <li role="none">
                             <a href="#" class="pill nav-item main-nav" onclick="switchTab('files', this)">
                                 <i data-lucide="folder" class="pill-icon"></i>
                                 <span class="pill-label">FILES</span>
@@ -115,9 +109,6 @@
                 <ul class="mobile-menu-list">
                     <li><a href="#" class="mobile-nav-link is-active" onclick="switchTab('dashboard'); toggleMobileMenu()">
                         <i data-lucide="layout-dashboard"></i> DASHBOARD
-                    </a></li>
-                    <li><a href="#" class="mobile-nav-link" onclick="switchTab('console'); toggleMobileMenu()">
-                        <i data-lucide="terminal"></i> CONSOLE
                     </a></li>
                     <li><a href="#" class="mobile-nav-link" onclick="switchTab('files'); toggleMobileMenu()">
                         <i data-lucide="folder"></i> FILES
@@ -304,18 +295,6 @@
                         </div>
                         <div id="playerList" class="player-list-container">
                             <div class="no-players">No players currently connected.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="tab-console" class="tab-content">
-                    <div class="glass-panel" style="padding: 24px;">
-                        <h2 style="margin-bottom: 15px;">Interactive Server Terminal</h2>
-                        <div id="log" class="terminal-log">Waiting for server stream...</div>
-                        <div class="console-input-wrapper mt-20">
-                            <span class="prompt-arrow">></span>
-                            <input type="text" id="consoleInput" class="console-input"
-                                placeholder="Execute command (e.g. op PlayerName, gamemode creative, say Hello)...">
                         </div>
                     </div>
                 </div>
