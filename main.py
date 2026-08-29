@@ -108,6 +108,10 @@ async def auto_backup_task():
             LAST_BACKUP_TIME = time.time()
 
 # --- STATUS & POWER MANAGEMENT ---
+@app.get("/api/ping")
+def ping_server():
+    return {"status": "ok", "timestamp": time.time()}
+
 @app.get("/api/status")
 def check_status():
     is_installed = os.path.exists(os.path.join(MC_DIR, "start.sh")) or os.path.exists(os.path.join(MC_DIR, "server.jar"))
@@ -118,14 +122,14 @@ def check_status():
 def get_stats():
     is_running = is_server_running()
     
-    # Real VPS Hardware Metrics
+    # Real VPS Hardware Metrics (instant non-blocking)
     try:
         import psutil
         v_mem = psutil.virtual_memory()
         ram_total_mb = int(v_mem.total / (1024 * 1024))
         ram_used_mb = int(v_mem.used / (1024 * 1024))
         ram = int(v_mem.percent)
-        cpu = int(psutil.cpu_percent(interval=0.1))
+        cpu = int(psutil.cpu_percent(interval=None))
         cpu_cores = psutil.cpu_count(logical=True)
         disk_usage = psutil.disk_usage('/')
         disk = int(disk_usage.percent)
