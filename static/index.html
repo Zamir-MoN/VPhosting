@@ -28,19 +28,16 @@
 
     <div class="app-layout">
         <header class="topbar">
-            <nav class="pill-nav" aria-label="Primary">
+            <div class="topbar-left">
                 <a class="pill-logo" href="#">
+                    <div class="valqore-logo-icon">⚡</div>
                     <span class="valqore-logo">VALQ<span class="logo-accent">ORE</span></span>
                     <span class="logo-badge">HOSTING</span>
                 </a>
+            </div>
 
-                <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Toggle Menu">
-                    <div class="hamburger-line"></div>
-                    <div class="hamburger-line"></div>
-                    <div class="hamburger-line"></div>
-                </button>
-
-                <div class="pill-nav-items desktop-only">
+            <nav class="pill-nav desktop-only" aria-label="Primary">
+                <div class="pill-nav-items">
                     <ul class="pill-list" role="menubar">
                         <li role="none">
                             <a href="#" class="pill nav-item active main-nav" onclick="switchTab('dashboard', this)">
@@ -88,117 +85,164 @@
                 </div>
             </nav>
 
-            <div class="mobile-menu" id="mobileMenu">
-                <div class="mobile-menu-header" style="position: absolute; top: 0; left: 0; width: 100%; padding: 30px; display: flex; justify-content: space-between; align-items: center;">
-                    <div class="valqore-logo">VALQ<span class="logo-accent">ORE</span></div>
+            <div class="topbar-right">
+                <div class="server-status-pill" id="globalStatusBadge">
+                    <span class="status-indicator-dot"></span>
+                    <span class="status-indicator-text" id="globalStatusText">ONLINE</span>
                 </div>
-                <ul class="mobile-menu-list">
-                    <li><a href="#" class="pill" onclick="switchTab('dashboard'); toggleMobileMenu()">
-                        <i data-lucide="layout-dashboard" style="width:18px;height:18px"></i> DASHBOARD
-                    </a></li>
-                    <li><a href="#" class="pill" onclick="switchTab('console'); toggleMobileMenu()">
-                        <i data-lucide="terminal" style="width:18px;height:18px"></i> CONSOLE
-                    </a></li>
-                    <li><a href="#" class="pill" onclick="switchTab('files'); toggleMobileMenu()">
-                        <i data-lucide="folder" style="width:18px;height:18px"></i> FILES
-                    </a></li>
-                    <li id="nav-installer-mobile"><a href="#" class="pill" onclick="switchTab('installer'); toggleMobileMenu()">
-                        <i data-lucide="download" style="width:18px;height:18px"></i> INSTALLER
-                    </a></li>
-                    <li><a href="#" class="pill" onclick="switchTab('players'); toggleMobileMenu()">
-                        <i data-lucide="users" style="width:18px;height:18px"></i> PLAYERS
-                    </a></li>
-                    <li><a href="#" class="pill" onclick="switchTab('worlds'); toggleMobileMenu()">
-                        <i data-lucide="globe" style="width:18px;height:18px"></i> WORLDS
-                    </a></li>
-                    <li><a href="#" class="pill" onclick="switchTab('settings'); toggleMobileMenu()">
-                        <i data-lucide="settings" style="width:18px;height:18px"></i> SETTINGS
-                    </a></li>
-                </ul>
-            </div>
-
-            <div class="topbar-right desktop-only">
-                <select class="server-select">
-                    <option>⚡ Valqore Node 01</option>
-                </select>
+                <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Toggle Menu">
+                    <div class="hamburger-line"></div>
+                    <div class="hamburger-line"></div>
+                    <div class="hamburger-line"></div>
+                </button>
             </div>
         </header>
 
+        <div class="mobile-menu" id="mobileMenu">
+            <div class="mobile-menu-backdrop" onclick="toggleMobileMenu()"></div>
+            <div class="mobile-menu-drawer">
+                <div class="mobile-menu-top">
+                    <div class="valqore-logo">VALQ<span class="logo-accent">ORE</span> <span class="logo-badge">HOSTING</span></div>
+                    <button class="mobile-close-btn" onclick="toggleMobileMenu()">&times;</button>
+                </div>
+                <ul class="mobile-menu-list">
+                    <li><a href="#" class="mobile-nav-link is-active" onclick="switchTab('dashboard'); toggleMobileMenu()">
+                        <i data-lucide="layout-dashboard"></i> DASHBOARD
+                    </a></li>
+                    <li><a href="#" class="mobile-nav-link" onclick="switchTab('console'); toggleMobileMenu()">
+                        <i data-lucide="terminal"></i> CONSOLE
+                    </a></li>
+                    <li><a href="#" class="mobile-nav-link" onclick="switchTab('files'); toggleMobileMenu()">
+                        <i data-lucide="folder"></i> FILES
+                    </a></li>
+                    <li><a href="#" class="mobile-nav-link" onclick="switchTab('installer'); toggleMobileMenu()">
+                        <i data-lucide="download"></i> INSTALLER
+                    </a></li>
+                    <li><a href="#" class="mobile-nav-link" onclick="switchTab('players'); toggleMobileMenu()">
+                        <i data-lucide="users"></i> PLAYERS
+                    </a></li>
+                    <li><a href="#" class="mobile-nav-link" onclick="switchTab('worlds'); toggleMobileMenu()">
+                        <i data-lucide="globe"></i> WORLDS
+                    </a></li>
+                    <li><a href="#" class="mobile-nav-link" onclick="switchTab('settings'); toggleMobileMenu()">
+                        <i data-lucide="settings"></i> SETTINGS
+                    </a></li>
+                </ul>
+            </div>
+        </div>
+
         <main class="main-content">
             <div class="content-header">
-                <h1 class="page-title" id="pageTitle">Dashboard</h1>
+                <div class="header-titles">
+                    <span class="page-subtitle">Server Management Engine</span>
+                    <h1 class="page-title" id="pageTitle">Dashboard</h1>
+                </div>
+                <div class="header-actions">
+                    <div id="connectionBar" class="connection-bar">
+                        <span class="connection-label">DIRECT IP:</span>
+                        <code id="serverIpDisplay" class="ip-code">Loading...</code>
+                        <button class="icon-btn" onclick="copyIp()" title="Copy IP">
+                            <i data-lucide="copy" style="width: 14px; height: 14px;"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="content-body">
 
                 <div id="tab-dashboard" class="tab-content active">
-                    <div id="connectionInfoCard" class="glass-panel mb-20"
-                        style="display: none; align-items: center; justify-content: space-between;">
-                        <div>
-                            <h2 style="margin-bottom: 5px;">Server Direct IP</h2>
-                            <p style="color: #9E9EA8; font-size: 0.88rem;">Use this direct address to join your Minecraft server.</p>
+                    <!-- Top Metric Cards Grid -->
+                    <div class="dashboard-grid mb-20">
+                        <div class="glass-panel metric-card">
+                            <div class="metric-card-header">
+                                <span class="metric-title">RAM USAGE</span>
+                                <div class="metric-icon-box ram"><i data-lucide="cpu" style="width:16px;height:16px;"></i></div>
+                            </div>
+                            <div class="metric-card-body">
+                                <h3 class="metric-value" id="text-ram">0%</h3>
+                                <p class="metric-sub" id="sub-ram">0 / 2048 MB</p>
+                            </div>
+                            <div class="metric-progress-bar">
+                                <div class="progress-fill ram" id="bar-ram" style="width: 0%;"></div>
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 15px; align-items: center;">
-                            <code id="serverIpDisplay" class="ip-display">Loading...</code>
-                            <button class="action-btn restart copy-btn" onclick="copyIp()">
-                                <i data-lucide="copy" style="width: 16px; height: 16px;"></i> Copy IP
-                            </button>
+
+                        <div class="glass-panel metric-card">
+                            <div class="metric-card-header">
+                                <span class="metric-title">CPU LOAD</span>
+                                <div class="metric-icon-box cpu"><i data-lucide="activity" style="width:16px;height:16px;"></i></div>
+                            </div>
+                            <div class="metric-card-body">
+                                <h3 class="metric-value" id="text-cpu">0%</h3>
+                                <p class="metric-sub" id="sub-cpu">Active Cores</p>
+                            </div>
+                            <div class="metric-progress-bar">
+                                <div class="progress-fill cpu" id="bar-cpu" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel metric-card">
+                            <div class="metric-card-header">
+                                <span class="metric-title">PLAYERS</span>
+                                <div class="metric-icon-box players"><i data-lucide="users" style="width:16px;height:16px;"></i></div>
+                            </div>
+                            <div class="metric-card-body">
+                                <h3 class="metric-value" id="text-slot">0/20</h3>
+                                <p class="metric-sub" id="sub-slot">Online Users</p>
+                            </div>
+                            <div class="metric-progress-bar">
+                                <div class="progress-fill players" id="bar-slot" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel metric-card">
+                            <div class="metric-card-header">
+                                <span class="metric-title">BACKUP CYCLE</span>
+                                <div class="metric-icon-box backup"><i data-lucide="shield-check" style="width:16px;height:16px;"></i></div>
+                            </div>
+                            <div class="metric-card-body">
+                                <h3 class="metric-value" id="text-overload">24h 0m</h3>
+                                <p class="metric-sub" id="sub-overload">Scheduled Sync</p>
+                            </div>
+                            <div class="metric-progress-bar">
+                                <div class="progress-fill backup" id="bar-overload" style="width: 100%;"></div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="glass-panel status-panel mb-20">
-                        <h2>System Metrics & Resources</h2>
-                        <div class="rings-wrapper">
-                            <div class="status-ring">
-                                <div class="circular-chart" id="ring-ram" style="--percentage: 0;">
-                                    <div class="circle-inner"><span class="percent-text" id="text-ram">0%</span></div>
-                                </div>
-                                <p class="ring-label">Memory Usage</p>
-                                <p class="ring-sub" id="sub-ram">(0/2048MB)</p>
-                            </div>
-                            <div class="status-ring">
-                                <div class="circular-chart" id="ring-cpu" style="--percentage: 0;">
-                                    <div class="circle-inner"><span class="percent-text" id="text-cpu">0%</span></div>
-                                </div>
-                                <p class="ring-label">CPU Load</p>
-                                <p class="ring-sub" id="sub-cpu">Processor Core</p>
-                            </div>
-                            <div class="status-ring">
-                                <div class="circular-chart" id="ring-slot" style="--percentage: 0;">
-                                    <div class="circle-inner"><span class="percent-text" id="text-slot">0%</span></div>
-                                </div>
-                                <p class="ring-label">Active Players</p>
-                                <p class="ring-sub" id="sub-slot">(0/20)</p>
-                            </div>
-                            <div class="status-ring">
-                                <div class="circular-chart" id="ring-overload" style="--percentage: 0;">
-                                    <div class="circle-inner"><span class="percent-text" id="text-overload">0%</span>
-                                    </div>
-                                </div>
-                                <p class="ring-label">Backup Cycle</p>
-                                <p class="ring-sub" id="sub-overload">Cloud Snapshot</p>
-                            </div>
+                    <!-- Power Controls Panel -->
+                    <div class="glass-panel power-panel mb-20">
+                        <div class="power-panel-info">
+                            <h2>Power Management</h2>
+                            <p class="section-desc">Control server execution lifecycle and runtime session.</p>
                         </div>
-                    </div>
-
-                    <div class="glass-panel mb-20">
-                        <h2>Power Controls</h2>
                         <div class="btn-group">
                             <button class="action-btn start" onclick="apiCall('/api/start')">
-                                <i data-lucide="play" style="width:16px;height:16px;"></i> Start Server
+                                <i data-lucide="play" style="width:16px;height:16px;"></i> Start
                             </button>
                             <button class="action-btn stop" onclick="apiCall('/api/stop')">
-                                <i data-lucide="square" style="width:16px;height:16px;"></i> Stop Server
+                                <i data-lucide="square" style="width:16px;height:16px;"></i> Stop
                             </button>
                             <button class="action-btn restart" onclick="apiCall('/api/restart')">
-                                <i data-lucide="rotate-cw" style="width:16px;height:16px;"></i> Restart Server
+                                <i data-lucide="rotate-cw" style="width:16px;height:16px;"></i> Restart
                             </button>
                         </div>
                     </div>
 
+                    <!-- Live Terminal Activity -->
                     <div class="glass-panel">
-                        <h2 style="margin-bottom: 15px;">Live Terminal Stream</h2>
-                        <div id="dashboardLog" class="terminal-log" style="height: 220px; font-size: 0.85rem;">Waiting for server logs...</div>
+                        <div class="terminal-panel-header">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div class="terminal-dot red"></div>
+                                <div class="terminal-dot yellow"></div>
+                                <div class="terminal-dot green"></div>
+                                <h2 style="font-size: 1rem; margin: 0; margin-left: 6px;">Live Terminal Stream</h2>
+                            </div>
+                            <button class="action-btn restart" style="padding: 6px 14px; font-size: 0.75rem;" onclick="switchTab('console')">
+                                Full Console <i data-lucide="arrow-up-right" style="width:14px;height:14px;"></i>
+                            </button>
+                        </div>
+                        <div id="dashboardLog" class="terminal-log" style="height: 240px; font-size: 0.85rem; margin-top: 14px;">Waiting for server stream...</div>
                     </div>
                 </div>
 

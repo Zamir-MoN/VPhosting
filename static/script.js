@@ -149,53 +149,64 @@ async function fetchStats() {
         const res = await fetch('/api/stats');
         const data = await res.json();
         
-        // Handle Power Buttons state
+        // Handle Global Status Badge & Power Buttons state
         const startBtn = document.querySelector('button[onclick="apiCall(\'/api/start\')"]');
         const stopBtn = document.querySelector('button[onclick="apiCall(\'/api/stop\')"]');
         const restartBtn = document.querySelector('button[onclick="apiCall(\'/api/restart\')"]');
+        const globalStatusBadge = document.getElementById('globalStatusBadge');
+        const globalStatusText = document.getElementById('globalStatusText');
 
         if (data.status === 'online') {
+            if (globalStatusBadge) {
+                globalStatusBadge.classList.remove('offline');
+                globalStatusText.innerText = "ONLINE";
+            }
             if (startBtn) startBtn.disabled = true;
             if (stopBtn) stopBtn.disabled = false;
             if (restartBtn) restartBtn.disabled = false;
         } else {
+            if (globalStatusBadge) {
+                globalStatusBadge.classList.add('offline');
+                globalStatusText.innerText = "OFFLINE";
+            }
             if (startBtn) startBtn.disabled = false;
             if (stopBtn) stopBtn.disabled = true;
             if (restartBtn) restartBtn.disabled = true;
         }
         
         // RAM
-        document.getElementById('ring-ram').style.setProperty('--percentage', data.ram_percent);
-        document.getElementById('text-ram').innerText = `${data.ram_percent}%`;
-        document.getElementById('sub-ram').innerText = `(${Math.floor((data.ram_percent / 100) * 2048)}/2048MB)`;
+        const ramBar = document.getElementById('bar-ram');
+        if (ramBar) ramBar.style.width = `${data.ram_percent}%`;
+        const textRam = document.getElementById('text-ram');
+        if (textRam) textRam.innerText = `${data.ram_percent}%`;
+        const subRam = document.getElementById('sub-ram');
+        if (subRam) subRam.innerText = `${Math.floor((data.ram_percent / 100) * 2048)} / 2048 MB`;
         
         // CPU
-        document.getElementById('ring-cpu').style.setProperty('--percentage', data.cpu_percent);
-        document.getElementById('text-cpu').innerText = `${data.cpu_percent}%`;
+        const cpuBar = document.getElementById('bar-cpu');
+        if (cpuBar) cpuBar.style.width = `${data.cpu_percent}%`;
+        const textCpu = document.getElementById('text-cpu');
+        if (textCpu) textCpu.innerText = `${data.cpu_percent}%`;
         
-        // Online Players (formerly Slots)
-        const playerPercent = (data.players_online / data.max_players) * 100;
-        document.getElementById('ring-slot').style.setProperty('--percentage', playerPercent);
-        document.getElementById('text-slot').innerText = `${data.players_online}/${data.max_players}`;
-        document.getElementById('sub-slot').innerText = "Players Online";
+        // Online Players
+        const playerPercent = Math.min(100, (data.players_online / data.max_players) * 100);
+        const slotBar = document.getElementById('bar-slot');
+        if (slotBar) slotBar.style.width = `${playerPercent}%`;
+        const textSlot = document.getElementById('text-slot');
+        if (textSlot) textSlot.innerText = `${data.players_online}/${data.max_players}`;
 
         // Backup Countdown
-        const countdownRing = document.getElementById('ring-overload');
         const countdownText = document.getElementById('text-overload');
-        const countdownCard = countdownRing.closest('.status-ring');
+        const overloadBar = document.getElementById('bar-overload');
         
         if (data.backup_countdown === -1) {
-            countdownCard.style.opacity = '0.3';
-            countdownCard.style.pointerEvents = 'none';
-            countdownText.innerText = "OFFLINE";
-            updateRing('overload', 0);
+            if (countdownText) countdownText.innerText = "STANDBY";
+            if (overloadBar) overloadBar.style.width = "0%";
         } else {
-            countdownCard.style.opacity = '1';
-            countdownCard.style.pointerEvents = 'auto';
             const hours = Math.floor(data.backup_countdown / 3600);
             const mins = Math.floor((data.backup_countdown % 3600) / 60);
-            countdownText.innerText = `${hours}h ${mins}m`;
-            updateRing('overload', data.backup_percent);
+            if (countdownText) countdownText.innerText = `${hours}h ${mins}m`;
+            if (overloadBar) overloadBar.style.width = `${data.backup_percent}%`;
         }
     } catch (e) { }
 }

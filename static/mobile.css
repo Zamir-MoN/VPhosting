@@ -1,11 +1,12 @@
-/* --- MOBILE STYLES (Max-width: 900px) --- */
+/* --- RESPONSIVE STYLES (Mobile & Tablet) --- */
 
+/* Mobile Menu & Drawer */
 .mobile-menu-btn {
     display: none;
     flex-direction: column;
     justify-content: space-between;
-    width: 26px;
-    height: 20px;
+    width: 24px;
+    height: 18px;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -15,9 +16,9 @@
 
 .hamburger-line {
     width: 100%;
-    height: 2.5px;
+    height: 2px;
     background-color: var(--primary);
-    border-radius: 10px;
+    border-radius: 99px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -25,19 +26,14 @@
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
+    width: 100vw;
     height: 100vh;
-    background: var(--bg-primary);
-    background: radial-gradient(circle at center, rgba(109, 40, 217, 0.15) 0%, rgba(10, 10, 11, 0.98) 100%);
-    backdrop-filter: blur(24px);
     z-index: 2000;
     display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     visibility: hidden;
     opacity: 0;
     pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
 .mobile-menu.active {
@@ -46,187 +42,196 @@
     pointer-events: all !important;
 }
 
-.mobile-menu-header {
-    display: none !important;
+.mobile-menu-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
 }
 
-@media (max-width: 900px) {
-    .app-layout {
-        height: 100dvh;
+.mobile-menu-drawer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 80%;
+    max-width: 320px;
+    height: 100%;
+    background: #0E0E12;
+    border-left: 1px solid var(--glass-border);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.8);
+}
+
+.mobile-menu.active .mobile-menu-drawer {
+    transform: translateX(0);
+}
+
+.mobile-menu-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mobile-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.8rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.mobile-close-btn:hover {
+    color: #fff;
+}
+
+.mobile-menu-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mobile-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.mobile-nav-link i {
+    width: 18px;
+    height: 18px;
+}
+
+.mobile-nav-link:hover,
+.mobile-nav-link.is-active {
+    background: var(--primary);
+    color: #0A0A0B;
+    border-color: var(--primary);
+    box-shadow: 0 0 15px var(--primary-glow);
+}
+
+/* --- TABLET BREAKPOINTS (Max-width: 1024px) --- */
+@media (max-width: 1024px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
     }
 
     .topbar {
-        padding: 0 20px;
-        height: 70px;
-        position: relative;
-        background: rgba(10, 10, 11, 0.9);
-        backdrop-filter: blur(20px);
+        padding: 0 24px;
     }
-
-    .pill-logo {
-        left: 20px;
-    }
-
-    .valqore-logo {
-        font-size: 1.25rem;
-    }
-
-    .topbar-right {
-        display: none;
-    }
-
-    .desktop-only { display: none !important; }
-    .mobile-menu-btn { display: flex; position: absolute; right: 20px; top: 25px; }
 
     .main-content {
-        padding: 0;
+        padding: 24px 24px 35px 24px;
+    }
+
+    .pill-list .pill {
+        padding: 6px 12px;
+        font-size: 0.72rem;
+    }
+}
+
+/* --- MOBILE BREAKPOINTS (Max-width: 768px) --- */
+@media (max-width: 768px) {
+    .topbar {
+        padding: 0 18px;
+        height: 64px;
+    }
+
+    .desktop-only {
+        display: none !important;
+    }
+
+    .mobile-menu-btn {
+        display: flex;
+    }
+
+    .main-content {
+        padding: 20px 16px 30px 16px;
     }
 
     .content-header {
-        padding: 25px 20px 15px 20px;
-    }
-
-    .page-title {
-        font-size: 1.8rem;
-        text-align: center;
-    }
-
-    .content-body {
-        padding: 0 15px 30px 15px;
-    }
-
-    .glass-panel {
-        padding: 20px;
-        border-radius: 18px;
-        margin-bottom: 15px;
-    }
-
-    .glass-panel h2 {
-        font-size: 1.15rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
         margin-bottom: 18px;
-        justify-content: center;
+        padding-bottom: 14px;
     }
 
-    #connectionInfoCard {
-        flex-direction: column;
-        align-items: stretch !important;
-        text-align: center;
-        gap: 15px;
+    .header-titles .page-title {
+        font-size: 1.65rem;
     }
 
-    #connectionInfoCard > div:nth-child(2) {
-        flex-direction: column;
+    .connection-bar {
         width: 100%;
+        justify-content: space-between;
     }
 
-    .ip-display {
-        font-size: 0.95rem;
-        word-break: break-all;
-        width: 100%;
-        text-align: center;
-    }
-
-    .copy-btn {
-        width: 100%;
-    }
-
-    .btn-group {
-        flex-direction: column;
+    .dashboard-grid {
+        grid-template-columns: 1fr 1fr;
         gap: 10px;
+    }
+
+    .metric-card {
+        padding: 14px;
+    }
+
+    .metric-title {
+        font-size: 0.68rem;
+    }
+
+    .metric-value {
+        font-size: 1.35rem;
+    }
+
+    .power-panel {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+    }
+
+    .power-panel .btn-group {
+        flex-direction: column;
+        width: 100%;
     }
 
     .action-btn {
         width: 100%;
-        padding: 14px;
-        font-size: 0.9rem;
-    }
-
-    .rings-wrapper {
-        grid-template-columns: 1fr 1fr;
-        gap: 15px;
-    }
-
-    .status-ring {
-        padding: 15px 10px;
-        border-radius: 16px;
-    }
-
-    .circular-chart {
-        width: 95px;
-        height: 95px;
-    }
-
-    .circle-inner {
-        width: 80px;
-        height: 80px;
-    }
-
-    .percent-text {
-        font-size: 1.25rem;
-    }
-
-    .ring-label {
-        font-size: 0.8rem;
+        padding: 12px;
+        font-size: 0.85rem;
     }
 
     .terminal-log {
-        height: 320px;
-        font-size: 0.85rem;
-        padding: 15px;
-    }
-
-    .console-input-wrapper {
-        padding: 10px 14px;
-    }
-
-    .console-input {
-        font-size: 0.9rem;
-    }
-
-    .file-header {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 15px;
-        text-align: center;
-    }
-
-    .file-header > div:last-child {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-    }
-
-    .file-header .action-btn {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .file-table th:nth-child(2), 
-    .file-table td:nth-child(2),
-    .file-table th:nth-child(3),
-    .file-table td:nth-child(3) {
-        display: none;
-    }
-
-    .file-table th, .file-table td {
-        padding: 12px 10px;
-    }
-
-    .file-row td {
-        font-size: 0.9rem;
-    }
-
-    .editor-textarea {
-        height: 400px;
+        height: 300px;
+        font-size: 0.82rem;
+        padding: 12px;
     }
 
     .software-card-grid {
         grid-template-columns: 1fr;
-        gap: 15px;
-    }
-
-    .software-card {
-        padding: 20px;
+        gap: 12px;
     }
 
     .marketplace-grid {
@@ -235,8 +240,7 @@
 
     .version-header-container {
         flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
+        align-items: stretch;
     }
 
     .version-header-left {
@@ -246,97 +250,35 @@
 
     .version-search-wrapper {
         max-width: 100%;
-        box-sizing: border-box;
     }
 
-    .player-main {
-        padding: 12px 15px;
-    }
-
-    .player-avatar {
-        width: 38px;
-        height: 38px;
-    }
-
-    .player-name {
-        font-size: 0.95rem;
+    .player-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
     }
 
     .player-actions {
+        width: 100%;
         flex-wrap: wrap;
     }
 
     .player-actions .action-btn {
         flex: 1 1 calc(50% - 6px);
-        padding: 10px;
-        font-size: 0.8rem;
+        padding: 8px;
+        font-size: 0.75rem;
     }
 
-    .mobile-menu-list {
-        list-style: none;
-        padding: 0;
-        width: 100%;
-        max-width: 320px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
+    .file-table th:nth-child(2), 
+    .file-table td:nth-child(2),
+    .file-table th:nth-child(3),
+    .file-table td:nth-child(3) {
+        display: none;
     }
 
-    .mobile-menu-list a {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        background: rgba(24, 24, 30, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 15px 20px;
-        border-radius: 14px;
-        color: #fff;
-        font-family: 'Montserrat', sans-serif;
-        font-size: 0.95rem;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        text-decoration: none;
-        transition: all 0.25s ease;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    .mobile-menu-list a:hover, 
-    .mobile-menu-list a.is-active {
-        background: var(--primary);
-        color: #0A0A0B;
-        border-color: var(--primary);
-        box-shadow: 0 0 20px var(--primary-glow);
-        transform: translateY(-2px);
-    }
-    
-    .mobile-menu-list a.is-active i {
-        color: #0A0A0B !important;
-    }
-
-    #tab-settings .glass-panel > div:first-of-type {
-        grid-template-columns: 1fr !important;
-    }
-    
-    .responsive-header {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 20px;
-    }
-    
-    .responsive-btn-group {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        gap: 10px;
-    }
-    
     .footer-content {
         flex-direction: column;
         text-align: center;
-        gap: 15px;
+        gap: 12px;
     }
 }
