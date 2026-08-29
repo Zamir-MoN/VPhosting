@@ -1,24 +1,33 @@
-// Loading system replaced by Toast notifications.
+// Premium Toast Notification System
 function showToast(message, type = 'success', undoAction = null) {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     
-    // Icon mapping
-    const icons = {
-        success: 'check-circle',
-        error: 'alert-circle',
-        info: 'info',
-        loading: 'loader'
-    };
-    
-    const iconName = icons[type] || 'bell';
-    const iconHtml = `<i data-lucide="${iconName}" class="toast-icon ${type === 'loading' ? 'spin' : ''}"></i>`;
+    let iconHtml = '';
+    if (type === 'loading') {
+        iconHtml = `
+            <div class="toast-orbital-spinner">
+                <div class="orbital-ring-outer"></div>
+                <div class="orbital-ring-inner"></div>
+                <i data-lucide="zap" class="orbital-center-icon"></i>
+            </div>
+        `;
+    } else {
+        const icons = {
+            success: 'check-circle',
+            error: 'alert-circle',
+            info: 'info'
+        };
+        const iconName = icons[type] || 'bell';
+        iconHtml = `<i data-lucide="${iconName}" class="toast-icon"></i>`;
+    }
     
     toast.innerHTML = `
         ${iconHtml}
         <div class="toast-content">
             <span class="toast-message">${message}</span>
+            ${type === 'loading' ? '<div class="toast-loading-bar"><div class="toast-loading-fill"></div></div>' : ''}
         </div>
     `;
 
@@ -56,7 +65,7 @@ function showToast(message, type = 'success', undoAction = null) {
         }, 5000);
     }
 
-    return toast; // Return toast element so it can be manually removed (e.g. for loading states)
+    return toast; // Return toast element so it can be manually removed
 }
 
 // --- Tab Switching ---
