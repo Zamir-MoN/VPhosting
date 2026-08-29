@@ -180,13 +180,17 @@ async function fetchStats() {
         const textRam = document.getElementById('text-ram');
         if (textRam) textRam.innerText = `${data.ram_percent}%`;
         const subRam = document.getElementById('sub-ram');
-        if (subRam) subRam.innerText = `${Math.floor((data.ram_percent / 100) * 2048)} / 2048 MB`;
+        const usedMb = data.ram_used_mb || 0;
+        const totalMb = data.ram_total_mb || 2048;
+        if (subRam) subRam.innerText = `${usedMb} / ${totalMb} MB`;
         
         // CPU
         const cpuBar = document.getElementById('bar-cpu');
         if (cpuBar) cpuBar.style.width = `${data.cpu_percent}%`;
         const textCpu = document.getElementById('text-cpu');
         if (textCpu) textCpu.innerText = `${data.cpu_percent}%`;
+        const subCpu = document.getElementById('sub-cpu');
+        if (subCpu && data.cpu_cores) subCpu.innerText = `${data.cpu_cores} Cores Active`;
         
         // Online Players
         const playerPercent = Math.min(100, (data.players_online / data.max_players) * 100);

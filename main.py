@@ -123,9 +123,24 @@ def get_stats():
     except:
         pass
     
-    cpu = random.randint(10, 30) if is_running else 0
-    ram = random.randint(25, 45) if is_running else 0
-    disk = random.randint(5, 15) if is_running else 0
+    # Real VPS Hardware Metrics
+    try:
+        import psutil
+        v_mem = psutil.virtual_memory()
+        ram_total_mb = int(v_mem.total / (1024 * 1024))
+        ram_used_mb = int(v_mem.used / (1024 * 1024))
+        ram = int(v_mem.percent)
+        cpu = int(psutil.cpu_percent(interval=0.1))
+        cpu_cores = psutil.cpu_count(logical=True)
+        disk_usage = psutil.disk_usage('/')
+        disk = int(disk_usage.percent)
+    except Exception:
+        ram_total_mb = 2048
+        ram_used_mb = 0
+        ram = 0
+        cpu = 0
+        cpu_cores = 2
+        disk = 0
     
     # Calculate backup countdown
     connected = os.path.exists(TOKEN_FILE)
@@ -166,7 +181,10 @@ def get_stats():
     return {
         "status": "online" if is_running else "offline",
         "cpu_percent": cpu,
+        "cpu_cores": cpu_cores,
         "ram_percent": ram,
+        "ram_used_mb": ram_used_mb,
+        "ram_total_mb": ram_total_mb,
         "disk_percent": disk,
         "players_online": len(online_players),
         "max_players": 20,
