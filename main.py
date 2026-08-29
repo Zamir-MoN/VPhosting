@@ -407,6 +407,9 @@ def start_server():
         return {"status": "error", "message": "Server is already running."}
 
     try:
+        start_script = os.path.join(MC_DIR, "start.sh")
+        server_jar = os.path.join(MC_DIR, "server.jar")
+
         # If server.jar exists but start.sh is missing, auto-create optimized start.sh
         if not os.path.exists(start_script) and os.path.exists(server_jar):
             # Calculate optimal RAM (assign up to 8GB or 70% of total VPS RAM)
