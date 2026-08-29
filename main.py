@@ -435,6 +435,9 @@ def start_server():
         except:
             pass
 
+        log_path = os.path.join(MC_DIR, "logs", "latest.log")
+        os.makedirs(os.path.join(MC_DIR, "logs"), exist_ok=True)
+
         # Find binary paths
         bash_bin = shutil.which("bash") or "/bin/bash"
         tmux_bin = shutil.which("tmux") or "/usr/bin/tmux"
