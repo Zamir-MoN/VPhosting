@@ -427,9 +427,11 @@ def start_server():
 
         log_path = os.path.join(MC_DIR, "logs", "latest.log")
         os.makedirs(os.path.join(MC_DIR, "logs"), exist_ok=True)
-        if os.path.exists(log_path):
-            open(log_path, 'w').close()
-            
+        # Find binary paths
+        bash_bin = shutil.which("bash") or "/bin/bash"
+        tmux_bin = shutil.which("tmux") or "/usr/bin/tmux"
+        java_bin = shutil.which("java") or "/usr/bin/java"
+
         # Launch server process directly to ensure stdout/stderr are immediately streamed to latest.log
         log_file = open(log_path, "a", buffering=1)
         
@@ -445,13 +447,6 @@ def start_server():
             stderr=subprocess.STDOUT, 
             stdin=subprocess.PIPE
         )
-        
-        # Also start tmux session if tmux exists for tmux attaching
-        if os.path.exists(tmux_bin):
-            try:
-                subprocess.run([tmux_bin, "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
-            except:
-                pass
 
         return {"status": "success", "message": "Server boot sequence initiated..."}
     except Exception as e:
