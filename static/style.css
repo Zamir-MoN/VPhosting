@@ -852,6 +852,24 @@ body {
 }
 
 /* --- PLUGIN MARKETPLACE --- */
+.filter-input {
+    width: 100%;
+    background: #09090C;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 10px 16px 10px 38px;
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.85rem;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.filter-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 15px var(--primary-glow);
+}
+
 .plugin-card {
     background: rgba(18, 18, 24, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.08);
