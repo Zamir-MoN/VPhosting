@@ -139,6 +139,11 @@
         gap: 14px;
     }
 
+    .plugin-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+    }
+
     .topbar {
         padding: 0 24px;
     }
@@ -232,6 +237,16 @@
     .software-card-grid {
         grid-template-columns: 1fr;
         gap: 12px;
+    }
+
+    .plugin-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    .plugin-card {
+        padding: 16px;
+        min-height: auto;
     }
 
     .marketplace-grid {
