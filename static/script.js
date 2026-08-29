@@ -155,7 +155,9 @@ function updateRing(id, percent) {
 
 async function fetchStats() {
     try {
+        const startTime = performance.now();
         const res = await fetch('/api/stats');
+        const latency = performance.now() - startTime;
         const data = await res.json();
         
         // Handle Global Status Badge & Power Buttons state
@@ -211,22 +213,31 @@ async function fetchStats() {
         const textSlot = document.getElementById('text-slot');
         if (textSlot) textSlot.innerText = `${data.players_online}/${data.max_players}`;
 
-        // Backup Countdown
-        const countdownText = document.getElementById('text-overload');
-        const overloadBar = document.getElementById('bar-overload');
+        // Server Ping (Latency)
+        const textPing = document.getElementById('text-ping');
+        const subPing = document.getElementById('sub-ping');
+        const barPing = document.getElementById('bar-ping');
         
-        if (data.backup_countdown === -1) {
-            if (countdownText) countdownText.innerText = "STANDBY";
-            if (overloadBar) overloadBar.style.width = "0%";
+        if (data.status === 'online') {
+            const pingMs = Math.max(1, Math.round(latency));
+            if (textPing) textPing.innerText = `${pingMs} ms`;
+            if (subPing) {
+                if (pingMs < 40) subPing.innerText = "Excellent Quality";
+                else if (pingMs < 100) subPing.innerText = "Good Latency";
+                else subPing.innerText = "Fair Quality";
+            }
+            if (barPing) {
+                const barPercent = Math.max(10, Math.min(100, 100 - (pingMs / 2)));
+                barPing.style.width = `${barPercent}%`;
+            }
         } else {
-            const hours = Math.floor(data.backup_countdown / 3600);
-            const mins = Math.floor((data.backup_countdown % 3600) / 60);
-            if (countdownText) countdownText.innerText = `${hours}h ${mins}m`;
-            if (overloadBar) overloadBar.style.width = `${data.backup_percent}%`;
+            if (textPing) textPing.innerText = "-- ms";
+            if (subPing) subPing.innerText = "Server Offline";
+            if (barPing) barPing.style.width = "0%";
         }
     } catch (e) { }
 }
-setInterval(fetchStats, 3000);
+setInterval(fetchStats, 2500);
 
 // --- INTERACTIVE CONSOLE ---
 const logDiv = document.getElementById('log');

@@ -491,7 +491,7 @@ body {
 .metric-icon-box.ram { background: rgba(230, 255, 0, 0.12); color: var(--primary); }
 .metric-icon-box.cpu { background: rgba(109, 40, 217, 0.15); color: var(--secondary-light); }
 .metric-icon-box.players { background: rgba(0, 255, 127, 0.12); color: var(--success-color); }
-.metric-icon-box.backup { background: rgba(212, 175, 55, 0.15); color: var(--tertiary); }
+.metric-icon-box.ping { background: rgba(0, 229, 255, 0.12); color: #00E5FF; }
 
 .metric-card-body {
     margin-bottom: 16px;
@@ -533,7 +533,7 @@ body {
 .progress-fill.ram { background: var(--primary); box-shadow: 0 0 8px var(--primary-glow); }
 .progress-fill.cpu { background: var(--secondary-light); box-shadow: 0 0 8px var(--secondary-glow); }
 .progress-fill.players { background: var(--success-color); }
-.progress-fill.backup { background: var(--tertiary); box-shadow: 0 0 8px var(--tertiary-glow); }
+.progress-fill.ping { background: #00E5FF; box-shadow: 0 0 8px rgba(0, 229, 255, 0.6); }
 
 /* Power Controls Panel */
 .power-panel {
