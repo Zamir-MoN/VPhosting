@@ -848,11 +848,40 @@ def search_plugins(q: str = "", limit: int = 30):
 
     return {"status": "success", "hits": results}
 
+def detect_server_version():
+    """Detects Minecraft server version from latest.log, version_history.json, or defaults to 1.21.1"""
+    # 1. Check version_history.json
+    vh_path = os.path.join(MC_DIR, "version_history.json")
+    if os.path.exists(vh_path):
+        try:
+            with open(vh_path, "r", encoding="utf-8") as f:
+                vh_data = json.load(f)
+                if isinstance(vh_data, dict) and "currentVersion" in vh_data:
+                    return vh_data["currentVersion"].split("-")[0].strip()
+        except:
+            pass
+
+    # 2. Check latest.log
+    log_path = os.path.join(MC_DIR, "logs", "latest.log")
+    if os.path.exists(log_path):
+        try:
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read(4096)
+                import re
+                m = re.search(r"Minecraft (\d+\.\d+(\.\d+)?)", content)
+                if m:
+                    return m.group(1)
+        except:
+            pass
+
+    return "1.21.1"
+
 @app.post("/api/plugins/install")
 async def install_plugin(request: Request):
     data = await request.json()
     slug_or_id = str(data.get("id") or data.get("slug") or "")
     source = data.get("source", "modrinth")
+    mc_version = detect_server_version()
 
     if not slug_or_id:
         return {"status": "error", "message": "Plugin ID required."}
@@ -879,8 +908,9 @@ async def install_plugin(request: Request):
         except Exception as e:
             return {"status": "error", "message": f"Spiget download error: {str(e)}"}
 
-    # Case B: Modrinth Download
+    # Case B: Modrinth Download with Automatic Version Matching
     try:
+        # Request all versions for this plugin
         url = f"https://api.modrinth.com/v2/project/{slug_or_id}/version"
         r = requests.get(url, headers=headers, timeout=10)
         if r.status_code != 200:
@@ -890,8 +920,38 @@ async def install_plugin(request: Request):
         if not versions:
             return {"status": "error", "message": "No versions available for download."}
         
-        version = versions[0]
-        files = version.get("files", [])
+        # Smart Filter: Find the best version matching our server's MC version (e.g. 1.21.1) and loaders (purpur, paper, spigot, bukkit)
+        matched_version = None
+        
+        # Priority 1: Exact MC version match + Server plugin loader match
+        for v in versions:
+            game_versions = v.get("game_versions", [])
+            loaders = v.get("loaders", [])
+            has_server_loader = any(l in ["paper", "purpur", "spigot", "bukkit", "folia", "velocity", "bungeecord"] for l in loaders)
+            if mc_version in game_versions and (has_server_loader or not loaders):
+                matched_version = v
+                break
+
+        # Priority 2: Exact MC version match (any loader)
+        if not matched_version:
+            for v in versions:
+                if mc_version in v.get("game_versions", []):
+                    matched_version = v
+                    break
+
+        # Priority 3: Server loader match on newest release
+        if not matched_version:
+            for v in versions:
+                loaders = v.get("loaders", [])
+                if any(l in ["paper", "purpur", "spigot", "bukkit"] for l in loaders):
+                    matched_version = v
+                    break
+
+        # Priority 4: Fallback to latest published version
+        if not matched_version:
+            matched_version = versions[0]
+
+        files = matched_version.get("files", [])
         jar_file = next((f for f in files if f.get("primary")), files[0] if files else None)
         if not jar_file:
             return {"status": "error", "message": "Could not find compatible .jar file."}
@@ -905,7 +965,13 @@ async def install_plugin(request: Request):
             for chunk in dl_r.iter_content(chunk_size=8192):
                 f.write(chunk)
 
-        return {"status": "success", "message": f"'{filename}' downloaded & applied to plugins folder successfully!", "filename": filename}
+        matched_ver_num = matched_version.get("version_number", "")
+        return {
+            "status": "success", 
+            "message": f"'{filename}' (v{matched_ver_num} for MC {mc_version}) downloaded & applied to /plugins folder!", 
+            "filename": filename,
+            "mc_version": mc_version
+        }
     except Exception as e:
         return {"status": "error", "message": f"Download failed: {str(e)}"}
 
