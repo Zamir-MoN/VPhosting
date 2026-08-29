@@ -81,18 +81,22 @@ function switchTab(tabId, element) {
     const oldTab = document.getElementById(`tab-${currentTab}`);
     const newTab = document.getElementById(`tab-${tabId}`);
 
-    // Update Nav Items (Desktop Sidebar)
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    if (element && element.classList.contains('nav-item')) {
-        element.classList.add('active');
-    } else {
-        document.querySelectorAll(`.nav-item[onclick*="'${tabId}'"]`).forEach(el => el.classList.add('active'));
-    }
+    // Update Nav Items (Desktop Topbar Pills)
+    document.querySelectorAll('.pill, .nav-item').forEach(el => {
+        el.classList.remove('active');
+        el.classList.remove('is-active');
+    });
+    document.querySelectorAll(`.pill[onclick*="'${tabId}'"], .nav-item[onclick*="'${tabId}'"]`).forEach(btn => {
+        btn.classList.add('active');
+    });
 
-    // Update PillNav active state (Desktop Topbar & Mobile Menu)
-    document.querySelectorAll('.pill').forEach(el => el.classList.remove('is-active'));
-    document.querySelectorAll(`.pill[onclick*="'${tabId}'"]`).forEach(btn => {
-        btn.classList.add('is-active');
+    // Update Mobile Drawer Links
+    document.querySelectorAll('.mobile-nav-link').forEach(el => {
+        el.classList.remove('is-active');
+        el.classList.remove('active');
+    });
+    document.querySelectorAll(`.mobile-nav-link[onclick*="'${tabId}'"]`).forEach(link => {
+        link.classList.add('is-active');
     });
 
     // Animate Tab Switch
