@@ -152,7 +152,25 @@ def get_stats():
         mc_procs = get_mc_processes() if is_running else []
         ram_used_mb = 0
         total_cpu_val = 0.0
-        allocated_ram_mb = ram_total_mb
+        allocated_ram_mb = 10240 # Default to 10GB configured Minecraft server RAM
+        
+        # Check start.sh for configured -Xmx value
+        start_sh_file = os.path.join(MC_DIR, "start.sh")
+        if os.path.exists(start_sh_file):
+            try:
+                with open(start_sh_file, "r", encoding="utf-8", errors="ignore") as sf:
+                    sh_content = sf.read()
+                    import re
+                    match = re.search(r"-Xmx(\d+)([MGmg])", sh_content)
+                    if match:
+                        num = int(match.group(1))
+                        unit = match.group(2).upper()
+                        if unit == "G":
+                            allocated_ram_mb = num * 1024
+                        elif unit == "M":
+                            allocated_ram_mb = num
+            except:
+                pass
         
         if mc_procs:
             for p in mc_procs:
@@ -165,10 +183,10 @@ def get_stats():
                     if p_cpu is not None and p_cpu > 0:
                         total_cpu_val += p_cpu
                         
-                    # Check cmdline for -Xmx argument to know max allocated heap for MC
+                    # Check running process cmdline for -Xmx override
                     cmdline = p.cmdline() if callable(getattr(p, 'cmdline', None)) else []
                     for arg in cmdline:
-                        if arg.startswith("-Xmx") or arg.startswith("-Xms"):
+                        if arg.startswith("-Xmx"):
                             val_str = arg[4:].strip().upper()
                             if val_str.endswith("G"):
                                 allocated_ram_mb = int(float(val_str[:-1]) * 1024)
@@ -191,7 +209,6 @@ def get_stats():
             ram_used_mb = 0
             ram = 0
             cpu = 0
-            allocated_ram_mb = ram_total_mb
     except Exception as e:
         ram_total_mb = 2048
         allocated_ram_mb = 2048
