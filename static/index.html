@@ -59,9 +59,15 @@
                             </a>
                         </li>
                         <li role="none">
-                            <a href="#" class="pill nav-item" onclick="switchTab('installer', this)" id="nav-installer">
+                            <a href="#" class="pill nav-item main-nav" onclick="switchTab('installer', this)">
                                 <i data-lucide="download" class="pill-icon"></i>
                                 <span class="pill-label">INSTALLER</span>
+                            </a>
+                        </li>
+                        <li role="none">
+                            <a href="#" class="pill nav-item main-nav" onclick="switchTab('plugins', this)">
+                                <i data-lucide="box" class="pill-icon"></i>
+                                <span class="pill-label">PLUGINS</span>
                             </a>
                         </li>
                         <li role="none">
@@ -115,6 +121,9 @@
                     </a></li>
                     <li><a href="#" class="mobile-nav-link" onclick="switchTab('installer'); toggleMobileMenu()">
                         <i data-lucide="download"></i> INSTALLER
+                    </a></li>
+                    <li><a href="#" class="mobile-nav-link" onclick="switchTab('plugins'); toggleMobileMenu()">
+                        <i data-lucide="box"></i> PLUGINS
                     </a></li>
                     <li><a href="#" class="mobile-nav-link" onclick="switchTab('players'); toggleMobileMenu()">
                         <i data-lucide="users"></i> PLAYERS
@@ -245,6 +254,57 @@
                             <span class="prompt-arrow">></span>
                             <input type="text" id="consoleInput" class="console-input"
                                 placeholder="Execute command (e.g. op PlayerName, gamemode creative, say Hello)...">
+                        </div>
+                </div>
+
+                <div id="tab-plugins" class="tab-content">
+                    <div class="glass-panel mb-20">
+                        <div class="version-header-container" style="display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                            <div class="version-header-left" style="display: flex; align-items: center; gap: 15px;">
+                                <div class="software-icon" style="margin: 0; width: 46px; height: 46px; border-radius: 12px; background: rgba(230, 255, 0, 0.12); border-color: rgba(230, 255, 0, 0.25);">
+                                    <i data-lucide="box" style="color: var(--primary); width: 24px; height: 24px;"></i>
+                                </div>
+                                <div>
+                                    <h2 style="margin: 0;">Plugin Marketplace</h2>
+                                    <p style="color: #9E9EA8; font-size: 0.82rem;">Search, download, and auto-apply plugins directly to your server</p>
+                                </div>
+                            </div>
+                            <div class="version-search-wrapper" style="position: relative; max-width: 320px; width: 100%;">
+                                <input type="text" id="pluginSearchInput" class="filter-input" placeholder="Search Spigot / Paper plugins..." style="width: 100%; padding-left: 38px;" onkeypress="if(event.key==='Enter') searchPlugins(this.value)">
+                                <i data-lucide="search" class="search-icon" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+                            </div>
+                        </div>
+
+                        <!-- Sub Navigation Pills for Marketplace vs Installed -->
+                        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                            <button id="btn-browse-plugins" class="action-btn start" style="font-size: 0.78rem; padding: 6px 16px;" onclick="showPluginView('browse')">
+                                <i data-lucide="compass" style="width: 14px; height: 14px;"></i> Browse Plugins
+                            </button>
+                            <button id="btn-installed-plugins" class="action-btn restart" style="font-size: 0.78rem; padding: 6px 16px;" onclick="showPluginView('installed')">
+                                <i data-lucide="check-circle" style="width: 14px; height: 14px;"></i> Installed Plugins (<span id="installedPluginCount">0</span>)
+                            </button>
+                        </div>
+
+                        <!-- Plugin Grid Container -->
+                        <div id="pluginBrowseView">
+                            <div id="pluginGrid" class="software-card-grid"></div>
+                        </div>
+
+                        <!-- Installed Plugins View -->
+                        <div id="pluginInstalledView" style="display: none;">
+                            <div class="file-list-container">
+                                <table class="file-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Plugin Name</th>
+                                            <th>File Size</th>
+                                            <th>Status</th>
+                                            <th style="width: 80px; text-align: right;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="installedPluginsBody"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>

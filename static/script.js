@@ -122,6 +122,7 @@ function switchTab(tabId, element) {
                 'console': 'Console',
                 'files': 'Files',
                 'installer': 'Installer',
+                'plugins': 'Plugin Marketplace',
                 'worlds': 'World Management',
                 'players': 'Player Management',
                 'settings': 'Settings'
@@ -134,6 +135,7 @@ function switchTab(tabId, element) {
     currentTab = tabId;
     if (tabId === 'files') loadFiles('');
     if (tabId === 'installer') loadMarketplace('vanilla');
+    if (tabId === 'plugins') loadPlugins();
     if (tabId === 'players') fetchPlayers();
 }
 
@@ -991,6 +993,180 @@ async function executeInstall(software, version) {
     } finally {
         isInstalling = false;
         document.querySelectorAll('.select-btn').forEach(btn => btn.disabled = false);
+    }
+}
+
+// --- PLUGIN MARKETPLACE ---
+let activePluginView = 'browse';
+
+function showPluginView(view) {
+    activePluginView = view;
+    const browseView = document.getElementById('pluginBrowseView');
+    const installedView = document.getElementById('pluginInstalledView');
+    const btnBrowse = document.getElementById('btn-browse-plugins');
+    const btnInstalled = document.getElementById('btn-installed-plugins');
+
+    if (view === 'browse') {
+        browseView.style.display = 'block';
+        installedView.style.display = 'none';
+        btnBrowse.className = 'action-btn start';
+        btnInstalled.className = 'action-btn restart';
+    } else {
+        browseView.style.display = 'none';
+        installedView.style.display = 'block';
+        btnBrowse.className = 'action-btn restart';
+        btnInstalled.className = 'action-btn start';
+        loadInstalledPlugins();
+    }
+}
+
+async function loadPlugins(query = "") {
+    const grid = document.getElementById('pluginGrid');
+    if (!grid) return;
+    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><p style="color: #a0abb8;">Searching popular plugins from Modrinth & Spigot...</p></div>';
+    
+    try {
+        const res = await fetch(`/api/plugins/search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        
+        if (data.status === 'success' && data.hits.length > 0) {
+            grid.innerHTML = '';
+            data.hits.forEach(plugin => {
+                const card = document.createElement('div');
+                card.className = 'plugin-card';
+                const icon = plugin.icon_url || 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f9e9.png';
+                const downloads = plugin.downloads > 1000 ? `${(plugin.downloads/1000).toFixed(1)}k` : plugin.downloads;
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="plugin-header">
+                            <img src="${icon}" class="plugin-icon" onerror="this.src='https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f9e9.png'">
+                            <div class="plugin-info">
+                                <div class="plugin-title" title="${plugin.title}">${plugin.title}</div>
+                                <div class="plugin-author">by ${plugin.author || 'Community'}</div>
+                            </div>
+                        </div>
+                        <p class="plugin-desc" title="${plugin.description || ''}">${plugin.description || 'No description available.'}</p>
+                    </div>
+                    <div class="plugin-meta">
+                        <div class="plugin-stats">
+                            <span><i data-lucide="download" style="width:12px;height:12px"></i> ${downloads}</span>
+                            <span><i data-lucide="heart" style="width:12px;height:12px"></i> ${plugin.follows || 0}</span>
+                        </div>
+                        <button class="action-btn start" style="padding: 6px 14px; font-size: 0.76rem;" onclick="installPlugin('${plugin.id}', '${plugin.title.replace(/'/g, "\\'")}')">
+                            <i data-lucide="download" style="width:13px;height:13px"></i> Install
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            lucide.createIcons();
+        } else {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><p style="color: #a0abb8;">No plugins found. Try a different search query.</p></div>';
+        }
+        loadInstalledPluginsCount();
+    } catch (e) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><p style="color: #ff4757;">Failed to connect to plugin index.</p></div>';
+    }
+}
+
+async function searchPlugins(query) {
+    loadPlugins(query);
+}
+
+async function installPlugin(id, title) {
+    const activeToast = showToast(`Downloading & applying ${title}...`, "loading");
+    try {
+        const res = await fetch('/api/plugins/install', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id })
+        });
+        const data = await res.json();
+        if (activeToast) activeToast.remove();
+        
+        if (data.status === 'success') {
+            showToast(`⚡ ${title} installed & applied to /plugins folder! Restart server to enable.`, "success");
+            loadInstalledPluginsCount();
+        } else {
+            showToast(data.message || "Failed to install plugin", "error");
+        }
+    } catch (e) {
+        if (activeToast) activeToast.remove();
+        showToast("Error communicating with download API.", "error");
+    }
+}
+
+async function loadInstalledPlugins() {
+    const body = document.getElementById('installedPluginsBody');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #a0abb8;">Loading installed plugins...</td></tr>';
+    
+    try {
+        const res = await fetch('/api/plugins/installed');
+        const data = await res.json();
+        if (data.status === 'success' && data.plugins.length > 0) {
+            body.innerHTML = '';
+            data.plugins.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = 'file-row';
+                const sizeKb = (p.size / 1024).toFixed(1) + ' KB';
+                tr.innerHTML = `
+                    <td style="font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="box" style="width: 16px; height: 16px; color: var(--primary);"></i>
+                        ${p.name}
+                    </td>
+                    <td>${sizeKb}</td>
+                    <td><span style="color: var(--success-color); font-size: 0.78rem; font-weight: 700;">● Active</span></td>
+                    <td style="text-align: right;">
+                        <button class="action-btn stop" style="padding: 5px 10px; font-size: 0.72rem;" onclick="deletePlugin('${p.name}')">
+                            <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i> Remove
+                        </button>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+            lucide.createIcons();
+        } else {
+            body.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 30px; color: #a0abb8;">No plugins installed yet in <code>mc_server/plugins/</code>. Browse and install above!</td></tr>';
+        }
+        loadInstalledPluginsCount();
+    } catch (e) {
+        body.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #ff4757;">Failed to read plugins directory.</td></tr>';
+    }
+}
+
+async function loadInstalledPluginsCount() {
+    try {
+        const res = await fetch('/api/plugins/installed');
+        const data = await res.json();
+        if (data.status === 'success') {
+            const el = document.getElementById('installedPluginCount');
+            if (el) el.innerText = data.plugins.length;
+        }
+    } catch (e) {}
+}
+
+async function deletePlugin(name) {
+    if (!confirm(`Delete plugin ${name}?`)) return;
+    const activeToast = showToast(`Removing ${name}...`, "loading");
+    try {
+        const res = await fetch('/api/plugins/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        });
+        const data = await res.json();
+        if (activeToast) activeToast.remove();
+        if (data.status === 'success') {
+            showToast(`Plugin ${name} deleted.`, "success");
+            loadInstalledPlugins();
+        } else {
+            showToast(data.message, "error");
+        }
+    } catch (e) {
+        if (activeToast) activeToast.remove();
+        showToast("Error deleting plugin.", "error");
     }
 }
 

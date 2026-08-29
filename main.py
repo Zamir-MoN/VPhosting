@@ -707,21 +707,102 @@ async def delete_file(request: Request):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.post("/api/files/undo-delete")
-async def undo_delete(request: Request):
+@app.get("/api/plugins/installed")
+def get_installed_plugins():
+    plugins_dir = os.path.join(MC_DIR, "plugins")
+    os.makedirs(plugins_dir, exist_ok=True)
+    installed = []
+    for item in os.listdir(plugins_dir):
+        if item.endswith(".jar"):
+            fpath = os.path.join(plugins_dir, item)
+            installed.append({
+                "name": item,
+                "size": os.stat(fpath).st_size,
+                "modified": os.stat(fpath).st_mtime
+            })
+    return {"status": "success", "plugins": installed}
+
+@app.get("/api/plugins/search")
+async def search_plugins(q: str = "", limit: int = 24):
+    url = f"https://api.modrinth.com/v2/search?query={q}&facets=[[%22project_type:plugin%22]]&limit={limit}"
+    headers = {"User-Agent": "ValqoreHosting/2.0"}
     try:
-        data = await request.json()
-        rel_path = data.get('path', '').strip('/')
-        trash_path = os.path.join(TRASH_DIR, rel_path)
-        full_path = os.path.join(MC_DIR, rel_path)
-        
-        if os.path.exists(trash_path):
-            os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            shutil.move(trash_path, full_path)
-            return {"status": "success", "message": "File restored"}
-        return {"status": "error", "message": "File not found in trash"}
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=8) as res:
+            data = json.loads(res.read().decode('utf-8'))
+            hits = data.get("hits", [])
+            results = []
+            for hit in hits:
+                results.append({
+                    "id": hit.get("project_id"),
+                    "slug": hit.get("slug"),
+                    "title": hit.get("title"),
+                    "description": hit.get("description"),
+                    "icon_url": hit.get("icon_url"),
+                    "downloads": hit.get("downloads", 0),
+                    "follows": hit.get("follows", 0),
+                    "author": hit.get("author"),
+                    "categories": hit.get("categories", []),
+                    "versions": hit.get("versions", [])
+                })
+            return {"status": "success", "hits": results}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": f"Failed to search plugins: {str(e)}", "hits": []}
+
+@app.post("/api/plugins/install")
+async def install_plugin(request: Request):
+    data = await request.json()
+    slug_or_id = data.get("id") or data.get("slug")
+    if not slug_or_id:
+        return {"status": "error", "message": "Plugin ID required."}
+
+    plugins_dir = os.path.join(MC_DIR, "plugins")
+    os.makedirs(plugins_dir, exist_ok=True)
+
+    # Fetch latest version from Modrinth
+    url = f"https://api.modrinth.com/v2/project/{slug_or_id}/version"
+    headers = {"User-Agent": "ValqoreHosting/2.0"}
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as res:
+            versions = json.loads(res.read().decode('utf-8'))
+            if not versions:
+                return {"status": "error", "message": "No download files available for this plugin."}
+            
+            # Find primary or first file
+            version = versions[0]
+            files = version.get("files", [])
+            jar_file = next((f for f in files if f.get("primary")), files[0] if files else None)
+            if not jar_file:
+                return {"status": "error", "message": "Could not find compatible .jar file."}
+            
+            download_url = jar_file.get("url")
+            filename = jar_file.get("filename")
+            dest_path = os.path.join(plugins_dir, filename)
+
+            # Download .jar directly into mc_server/plugins/
+            dl_req = urllib.request.Request(download_url, headers=headers)
+            with urllib.request.urlopen(dl_req, timeout=30) as dl_res, open(dest_path, "wb") as out_f:
+                shutil.copyfileobj(dl_res, out_f)
+
+            return {"status": "success", "message": f"'{filename}' downloaded & applied to plugins folder successfully!", "filename": filename}
+    except Exception as e:
+        return {"status": "error", "message": f"Download failed: {str(e)}"}
+
+@app.post("/api/plugins/delete")
+async def delete_plugin(request: Request):
+    data = await request.json()
+    name = data.get("name")
+    if not name:
+        return {"status": "error", "message": "Plugin name required."}
+    target = os.path.join(MC_DIR, "plugins", name)
+    if os.path.exists(target):
+        try:
+            os.remove(target)
+            return {"status": "success", "message": f"Plugin '{name}' removed."}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+    return {"status": "error", "message": "Plugin not found."}
 
 @app.post("/api/backup")
 def backup_world():
