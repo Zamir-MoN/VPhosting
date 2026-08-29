@@ -416,15 +416,19 @@ body {
 /* --- DASHBOARD METRIC CARDS GRID --- */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
+    align-items: stretch;
+    margin-bottom: 24px !important;
 }
 
 .metric-card {
-    padding: 20px;
+    padding: 22px 20px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    min-height: 148px;
+    margin-bottom: 0 !important;
     position: relative;
     overflow: hidden;
 }
@@ -433,6 +437,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 12px;
 }
 
 .metric-title {
@@ -457,7 +462,10 @@ body {
 .metric-icon-box.backup { background: rgba(212, 175, 55, 0.15); color: var(--tertiary); }
 
 .metric-card-body {
-    margin: 14px 0 12px 0;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .metric-value {
@@ -470,7 +478,9 @@ body {
 .metric-sub {
     font-size: 0.76rem;
     color: var(--text-secondary);
-    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .metric-progress-bar {
@@ -479,6 +489,7 @@ body {
     background: rgba(255, 255, 255, 0.06);
     border-radius: 99px;
     overflow: hidden;
+    margin-top: auto;
 }
 
 .progress-fill {
