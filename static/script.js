@@ -252,6 +252,30 @@ async function fetchConsoleLogs() {
                 }
                 fetchStats();
             }
+
+            // Check if server failed / crashed on boot
+            if (isWaitingForStart && (data.log.includes('command not found') || data.log.includes('UnsupportedClassVersionError') || data.log.includes('Error: Unable to access jarfile'))) {
+                if (startLoadingToast) {
+                    startLoadingToast.remove();
+                    startLoadingToast = null;
+                }
+                showToast("Startup Failed: Java is missing on the VPS.", "error");
+                isWaitingForStart = false;
+                
+                const startBtn = document.querySelector('button[onclick="apiCall(\'/api/start\')"]');
+                if (startBtn) {
+                    startBtn.classList.remove('is-loading');
+                    startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Start';
+                    lucide.createIcons();
+                }
+                const globalStatusBadge = document.getElementById('globalStatusBadge');
+                const globalStatusText = document.getElementById('globalStatusText');
+                if (globalStatusBadge) {
+                    globalStatusBadge.className = 'server-status-pill offline';
+                    if (globalStatusText) globalStatusText.innerText = "OFFLINE";
+                }
+                fetchStats();
+            }
         }
     } catch (e) { }
 }
