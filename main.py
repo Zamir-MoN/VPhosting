@@ -425,8 +425,16 @@ def start_server():
             with open(eula_path, "w") as f:
                 f.write("eula=true\n")
 
-        log_path = os.path.join(MC_DIR, "logs", "latest.log")
-        os.makedirs(os.path.join(MC_DIR, "logs"), exist_ok=True)
+        # Clean up any zombie process or port collision on 25565
+        try:
+            if shutil.which("fuser"):
+                subprocess.run(["fuser", "-k", "25565/tcp"], stderr=subprocess.DEVNULL)
+            else:
+                subprocess.run(["killall", "-9", "java"], stderr=subprocess.DEVNULL)
+            time.sleep(0.5)
+        except:
+            pass
+
         # Find binary paths
         bash_bin = shutil.which("bash") or "/bin/bash"
         tmux_bin = shutil.which("tmux") or "/usr/bin/tmux"
