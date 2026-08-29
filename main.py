@@ -440,12 +440,17 @@ def start_server():
         else:
             cmd = [java_bin, "-Xms1G", "-Xmx2G", "-jar", server_jar, "nogui"]
             
+        # Ensure full environment with PATH containing Java
+        env = os.environ.copy()
+        env["PATH"] = f"/usr/bin:/bin:/usr/local/bin:{env.get('PATH', '')}"
+
         MC_PROCESS = subprocess.Popen(
             cmd, 
             cwd=MC_DIR, 
             stdout=log_file, 
             stderr=subprocess.STDOUT, 
-            stdin=subprocess.PIPE
+            stdin=subprocess.PIPE,
+            env=env
         )
 
         return {"status": "success", "message": "Server boot sequence initiated..."}
