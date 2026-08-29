@@ -42,6 +42,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Delta X Panel API", lifespan=lifespan)
 
+from fastapi.responses import JSONResponse
+import traceback
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    print("--- GLOBAL ERROR ---")
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "message": f"Server error: {str(exc)}"}
+    )
+
 # Configuration
 RCON_HOST = "127.0.0.1"
 RCON_PORT = 25575
@@ -502,7 +514,7 @@ def is_server_running():
     return False
 
 @app.post("/api/start")
-def start_server():
+async def start_server():
     global MC_PROCESS
     if is_server_running():
         return {"status": "error", "message": "Server is already running."}
@@ -683,7 +695,7 @@ async def stop_server():
 async def restart_server():
     await stop_server()
     await asyncio.sleep(1.5)
-    return start_server()
+    return await start_server()
 
 @app.post("/api/delete")
 async def delete_server():
