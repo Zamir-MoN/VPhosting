@@ -220,6 +220,7 @@ setInterval(fetchStats, 3000);
 const logDiv = document.getElementById('log');
 let autoScroll = true;
 let isWaitingForStart = false;
+let startLoadingToast = null;
 
 async function fetchConsoleLogs() {
     try {
@@ -233,14 +234,28 @@ async function fetchConsoleLogs() {
                     consoleElem.scrollTop = consoleElem.scrollHeight;
                 }
             }
-            if (isWaitingForStart && (data.log.includes('Done (') || data.log.includes('For help, type "help"'))) {
-                showToast("Server Ready!", "success");
+            
+            // Check if server boot completed
+            if (isWaitingForStart && (data.log.includes('Done (') || data.log.includes('For help, type "help"') || data.log.includes('Timings Reset'))) {
+                if (startLoadingToast) {
+                    startLoadingToast.remove();
+                    startLoadingToast = null;
+                }
+                showToast("⚡ Minecraft Server is fully Online & Ready to Play!", "success");
                 isWaitingForStart = false;
+                
+                const startBtn = document.querySelector('button[onclick="apiCall(\'/api/start\')"]');
+                if (startBtn) {
+                    startBtn.classList.remove('is-loading');
+                    startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Start';
+                    lucide.createIcons();
+                }
+                fetchStats();
             }
         }
     } catch (e) { }
 }
-setInterval(fetchConsoleLogs, 2000);
+setInterval(fetchConsoleLogs, 1500);
 
 if (logDiv) {
     logDiv.addEventListener('scroll', () => { 
@@ -262,14 +277,45 @@ async function apiCall(endpoint, body = null) {
     const isPowerAction = ['/api/start', '/api/stop', '/api/restart', '/api/delete', '/api/world/regenerate'].includes(endpoint);
     
     let activeToast = null;
+    const startBtn = document.querySelector('button[onclick="apiCall(\'/api/start\')"]');
+    const globalStatusBadge = document.getElementById('globalStatusBadge');
+    const globalStatusText = document.getElementById('globalStatusText');
+
     if (isPowerAction) {
-        let msg = "Processing your request...";
-        if (endpoint === '/api/start') { msg = "Starting Server..."; isWaitingForStart = true; }
-        if (endpoint === '/api/stop') { msg = "Stopping Server..."; }
-        if (endpoint === '/api/restart') { msg = "Restarting Server..."; isWaitingForStart = true; }
+        let msg = "Processing request...";
+        if (endpoint === '/api/start') { 
+            msg = "Booting Minecraft Engine (Generating spawn & preparing chunks)..."; 
+            isWaitingForStart = true;
+            if (startBtn) {
+                startBtn.classList.add('is-loading');
+                startBtn.innerHTML = '<i data-lucide="loader" class="spin-icon" style="width:16px;height:16px;"></i> Starting...';
+                lucide.createIcons();
+            }
+            if (globalStatusBadge) {
+                globalStatusBadge.className = 'server-status-pill starting';
+                if (globalStatusText) globalStatusText.innerText = "STARTING...";
+            }
+        }
+        if (endpoint === '/api/stop') { 
+            msg = "Stopping Server..."; 
+            isWaitingForStart = false;
+            if (startBtn) {
+                startBtn.classList.remove('is-loading');
+                startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Start';
+                lucide.createIcons();
+            }
+        }
+        if (endpoint === '/api/restart') { 
+            msg = "Restarting Server..."; 
+            isWaitingForStart = true;
+        }
         if (endpoint === '/api/delete') { msg = "Wiping Server Files..."; }
         if (endpoint === '/api/world/regenerate') { msg = "Regenerating World..."; }
+        
         activeToast = showToast(msg, "loading");
+        if (endpoint === '/api/start') {
+            startLoadingToast = activeToast;
+        }
     } else {
         activeToast = showToast("Executing Command...", "loading");
     }
@@ -284,16 +330,28 @@ async function apiCall(endpoint, body = null) {
         const data = await response.json();
         
         if (data.status === 'success') {
-            if (activeToast) activeToast.remove();
-            showToast(data.message || "Action completed", "success");
+            if (endpoint !== '/api/start' && activeToast) {
+                activeToast.remove();
+                showToast(data.message || "Action completed", "success");
+            }
             fetchStats();
         } else {
             if (activeToast) activeToast.remove();
+            if (startBtn) {
+                startBtn.classList.remove('is-loading');
+                startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Start';
+                lucide.createIcons();
+            }
             showToast(data.message, 'error');
             isWaitingForStart = false;
         }
     } catch (error) { 
         if (activeToast) activeToast.remove();
+        if (startBtn) {
+            startBtn.classList.remove('is-loading');
+            startBtn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Start';
+            lucide.createIcons();
+        }
         showToast("Network error or connection lost.", "error");
         isWaitingForStart = false; 
     }
