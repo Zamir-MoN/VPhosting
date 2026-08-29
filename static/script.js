@@ -753,19 +753,6 @@ async function loadFiles(path) {
 
             const tbody = document.getElementById('fileListBody');
             tbody.innerHTML = '';
-            
-            if (currentPath !== '') {
-                const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
-                tbody.innerHTML += `
-                    <tr class="file-row" style="background: rgba(230, 255, 0, 0.04); cursor: pointer;" onclick="loadFiles('${parentPath}')">
-                        <td colspan="4" style="padding: 12px 16px;">
-                            <div style="display:flex; align-items:center; gap:10px; color: var(--primary); font-weight: 700;">
-                                <i data-lucide="arrow-left" style="width:16px;height:16px"></i>
-                                <span>.. (Back to parent directory)</span>
-                            </div>
-                        </td>
-                    </tr>`;
-            }
 
             data.files.forEach(f => {
                 const isImportant = IMPORTANT_FILES.includes(f.name.toLowerCase());
