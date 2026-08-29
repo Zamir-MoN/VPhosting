@@ -551,29 +551,48 @@ java -Xms{alloc_mb}M -Xmx{alloc_mb}M \\
 @app.post("/api/stop")
 async def stop_server():
     global MC_PROCESS
-    tmux_bin = shutil.which("tmux") or "/usr/bin/tmux"
     try:
-        if os.path.exists(tmux_bin):
-            subprocess.run([tmux_bin, "send-keys", "-t", "mc_server", "stop", "ENTER"], stderr=subprocess.DEVNULL)
-            await asyncio.sleep(2)
-            subprocess.run([tmux_bin, "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
-        
+        # 1. Attempt graceful Minecraft stop command
+        if shutil.which("tmux"):
+            subprocess.run(["tmux", "send-keys", "-t", "mc_server", "stop", "ENTER"], stderr=subprocess.DEVNULL)
+        elif MC_PROCESS and MC_PROCESS.stdin:
+            try:
+                MC_PROCESS.stdin.write(b"stop\n")
+                MC_PROCESS.stdin.flush()
+            except:
+                pass
+
+        await asyncio.sleep(1.5)
+
+        # 2. Terminate tracked subprocess
         if MC_PROCESS:
             try:
                 MC_PROCESS.terminate()
-                MC_PROCESS = None
+                MC_PROCESS.kill()
             except:
                 pass
-                
+            MC_PROCESS = None
+
+        # 3. Kill any remaining java/tmux instances
+        if shutil.which("tmux"):
+            subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
         subprocess.run(["killall", "-9", "java"], stderr=subprocess.DEVNULL)
-        return {"status": "success", "message": "Server forcefully stopped."}
+
+        # 4. Clean up lock files
+        for world_folder in ["world", "world_nether", "world_the_end"]:
+            lock_file = os.path.join(MC_DIR, world_folder, "session.lock")
+            if os.path.exists(lock_file):
+                try: os.remove(lock_file)
+                except: pass
+
+        return {"status": "success", "message": "Server stopped successfully."}
     except Exception as e:
-        return {"status": "error", "message": f"Stop command error: {str(e)}"}
+        return {"status": "error", "message": f"Stop error: {str(e)}"}
 
 @app.post("/api/restart")
 async def restart_server():
     await stop_server()
-    await asyncio.sleep(3)
+    await asyncio.sleep(1.5)
     return start_server()
 
 @app.post("/api/delete")
