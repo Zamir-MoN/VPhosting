@@ -430,18 +430,28 @@ def start_server():
         if os.path.exists(log_path):
             open(log_path, 'w').close()
             
-        # Find bash executable full path
-        bash_bin = shutil.which("bash") or "/bin/bash"
-        tmux_bin = shutil.which("tmux") or "/usr/bin/tmux"
-        java_bin = shutil.which("java") or "/usr/bin/java"
-
-        # Launch with tmux if installed, otherwise fallback to direct background process
-        if os.path.exists(tmux_bin):
-            subprocess.run([tmux_bin, "new-session", "-d", "-s", "mc_server", "-c", MC_DIR, bash_bin, start_script], check=True)
+        # Launch server process directly to ensure stdout/stderr are immediately streamed to latest.log
+        log_file = open(log_path, "a", buffering=1)
+        
+        if os.path.exists(start_script) and os.path.exists(bash_bin):
+            cmd = [bash_bin, start_script]
         else:
-            cmd = [bash_bin, start_script] if os.path.exists(start_script) else [java_bin, "-Xms1G", "-Xmx2G", "-jar", "server.jar", "nogui"]
-            log_file = open(log_path, "a")
-            MC_PROCESS = subprocess.Popen(cmd, cwd=MC_DIR, stdout=log_file, stderr=log_file, stdin=subprocess.PIPE)
+            cmd = [java_bin, "-Xms1G", "-Xmx2G", "-jar", server_jar, "nogui"]
+            
+        MC_PROCESS = subprocess.Popen(
+            cmd, 
+            cwd=MC_DIR, 
+            stdout=log_file, 
+            stderr=subprocess.STDOUT, 
+            stdin=subprocess.PIPE
+        )
+        
+        # Also start tmux session if tmux exists for tmux attaching
+        if os.path.exists(tmux_bin):
+            try:
+                subprocess.run([tmux_bin, "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
+            except:
+                pass
 
         return {"status": "success", "message": "Server boot sequence initiated..."}
     except Exception as e:
