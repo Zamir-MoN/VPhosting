@@ -277,11 +277,11 @@
                         </div>
 
                         <!-- Sub Navigation Pills for Marketplace vs Installed -->
-                        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                            <button id="btn-browse-plugins" class="action-btn start" style="font-size: 0.78rem; padding: 6px 16px;" onclick="showPluginView('browse')">
+                        <div class="plugin-subnav-group">
+                            <button id="btn-browse-plugins" class="plugin-subnav-btn active" onclick="showPluginView('browse')">
                                 <i data-lucide="compass" style="width: 14px; height: 14px;"></i> Browse Plugins
                             </button>
-                            <button id="btn-installed-plugins" class="action-btn restart" style="font-size: 0.78rem; padding: 6px 16px;" onclick="showPluginView('installed')">
+                            <button id="btn-installed-plugins" class="plugin-subnav-btn" onclick="showPluginView('installed')">
                                 <i data-lucide="check-circle" style="width: 14px; height: 14px;"></i> Installed Plugins (<span id="installedPluginCount">0</span>)
                             </button>
                         </div>

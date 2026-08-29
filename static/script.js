@@ -1009,13 +1009,13 @@ function showPluginView(view) {
     if (view === 'browse') {
         browseView.style.display = 'block';
         installedView.style.display = 'none';
-        btnBrowse.className = 'action-btn start';
-        btnInstalled.className = 'action-btn restart';
+        btnBrowse.className = 'plugin-subnav-btn active';
+        btnInstalled.className = 'plugin-subnav-btn';
     } else {
         browseView.style.display = 'none';
         installedView.style.display = 'block';
-        btnBrowse.className = 'action-btn restart';
-        btnInstalled.className = 'action-btn start';
+        btnBrowse.className = 'plugin-subnav-btn';
+        btnInstalled.className = 'plugin-subnav-btn active';
         loadInstalledPlugins();
     }
 }
@@ -1053,7 +1053,7 @@ async function loadPlugins(query = "") {
                             <span><i data-lucide="download" style="width:12px;height:12px"></i> ${downloads}</span>
                             <span><i data-lucide="heart" style="width:12px;height:12px"></i> ${plugin.follows || 0}</span>
                         </div>
-                        <button class="action-btn start" style="padding: 6px 14px; font-size: 0.76rem;" onclick="installPlugin('${plugin.id}', '${plugin.title.replace(/'/g, "\\'")}', '${plugin.source || 'modrinth'}')">
+                        <button class="plugin-install-btn" onclick="installPlugin('${plugin.id}', '${plugin.title.replace(/'/g, "\\'")}', '${plugin.source || 'modrinth'}')">
                             <i data-lucide="download" style="width:13px;height:13px"></i> Install
                         </button>
                     </div>

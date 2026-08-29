@@ -870,6 +870,42 @@ body {
     box-shadow: 0 0 15px var(--primary-glow);
 }
 
+/* --- PLUGIN SUBNAV PILLS --- */
+.plugin-subnav-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.plugin-subnav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 8px 18px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.plugin-subnav-btn:hover {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.plugin-subnav-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #0A0A0B;
+    box-shadow: 0 0 15px var(--primary-glow);
+}
+
 .plugin-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
@@ -951,6 +987,7 @@ body {
     padding-top: 12px;
     border-top: 1px solid rgba(255,255,255,0.05);
     margin-top: auto;
+    gap: 10px;
 }
 
 .plugin-stats {
@@ -959,6 +996,7 @@ body {
     gap: 10px;
     font-size: 0.72rem;
     color: var(--text-muted);
+    flex-shrink: 0;
 }
 
 .plugin-stats span {
@@ -967,10 +1005,30 @@ body {
     gap: 4px;
 }
 
-.plugin-meta .action-btn {
+.plugin-install-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: var(--primary);
+    color: #0A0A0B;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.76rem;
+    font-weight: 800;
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
     flex-shrink: 0;
-    font-size: 0.75rem;
-    padding: 6px 14px;
+    width: auto !important;
+    max-width: 120px;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 12px var(--primary-glow);
+}
+
+.plugin-install-btn:hover {
+    transform: scale(1.04);
+    box-shadow: 0 0 20px var(--primary-glow);
 }
 
 /* Marketplace Grid */
