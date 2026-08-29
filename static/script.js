@@ -806,9 +806,35 @@ function toggleMobileMenu() {
 window.addEventListener("load", () => {
     const splash = document.getElementById('splash-screen');
     if (splash) {
-        setTimeout(() => {
-            gsap.to(splash, { opacity: 0, duration: 0.6, ease: "power2.inOut", onComplete: () => splash.style.display = 'none' });
-        }, 800);
+        gsap.timeline()
+            .to('.splash-ring', { scale: 1.15, duration: 0.4, yoyo: true, repeat: 1 })
+            .to(splash, { 
+                opacity: 0, 
+                duration: 0.6, 
+                ease: "power3.inOut", 
+                onComplete: () => {
+                    splash.style.display = 'none';
+                    // Stagger Entrance for UI elements
+                    gsap.from('.topbar', { y: -50, opacity: 0, duration: 0.6, ease: "power3.out" });
+                    gsap.from('.page-title', { x: -30, opacity: 0, duration: 0.5, delay: 0.2, ease: "power2.out" });
+                    gsap.from('.glass-panel', { 
+                        y: 30, 
+                        opacity: 0, 
+                        duration: 0.6, 
+                        stagger: 0.1, 
+                        delay: 0.25, 
+                        ease: "power3.out" 
+                    });
+                    gsap.from('.status-ring', { 
+                        scale: 0.9, 
+                        opacity: 0, 
+                        duration: 0.5, 
+                        stagger: 0.08, 
+                        delay: 0.4, 
+                        ease: "back.out(1.5)" 
+                    });
+                }
+            });
     }
 });
 
@@ -817,7 +843,6 @@ document.addEventListener("DOMContentLoaded", () => {
     checkStatus();
     fetchStats();
     fetchConsoleLogs();
-    checkStatus();
 });
 setInterval(checkStatus, 5000);
 

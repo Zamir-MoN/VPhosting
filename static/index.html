@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Delta X MC Panel</title>
+    <title>Valqore Hosting - Minecraft Control Panel</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="/static/mobile.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
@@ -18,9 +18,9 @@
         <div class="splash-content">
             <div class="splash-icon-wrapper">
                 <div class="splash-ring"></div>
-                <div class="dx-logo splash-logo">DX.</div>
+                <div class="valqore-logo splash-logo" style="font-size: 2rem;">VALQ<span class="logo-accent">ORE</span></div>
             </div>
-            <div class="splash-text">LOADING SERVER PANEL...</div>
+            <div class="splash-text">INITIALIZING VALQORE ENGINE...</div>
         </div>
     </div>
 
@@ -30,7 +30,8 @@
         <header class="topbar">
             <nav class="pill-nav" aria-label="Primary">
                 <a class="pill-logo" href="#">
-                    <span class="dx-logo">DX.</span>
+                    <span class="valqore-logo">VALQ<span class="logo-accent">ORE</span></span>
+                    <span class="logo-badge">HOSTING</span>
                 </a>
 
                 <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Toggle Menu">
@@ -45,59 +46,51 @@
                             <a href="#" class="pill nav-item active main-nav" onclick="switchTab('dashboard', this)">
                                 <i data-lucide="layout-dashboard" class="pill-icon"></i>
                                 <span class="pill-label">DASHBOARD</span>
-                                <div class="active-dot"></div>
                             </a>
                         </li>
                         <li role="none">
                             <a href="#" class="pill nav-item main-nav" onclick="switchTab('console', this)">
                                 <i data-lucide="terminal" class="pill-icon"></i>
                                 <span class="pill-label">CONSOLE</span>
-                                <div class="active-dot"></div>
                             </a>
                         </li>
                         <li role="none">
                             <a href="#" class="pill nav-item main-nav" onclick="switchTab('files', this)">
                                 <i data-lucide="folder" class="pill-icon"></i>
                                 <span class="pill-label">FILES</span>
-                                <div class="active-dot"></div>
                             </a>
                         </li>
                         <li role="none">
                             <a href="#" class="pill nav-item" onclick="switchTab('installer', this)" id="nav-installer">
                                 <i data-lucide="download" class="pill-icon"></i>
                                 <span class="pill-label">INSTALLER</span>
-                                <div class="active-dot"></div>
                             </a>
                         </li>
                         <li role="none">
                             <a href="#" class="pill nav-item main-nav" onclick="switchTab('players', this)">
                                 <i data-lucide="users" class="pill-icon"></i>
                                 <span class="pill-label">PLAYERS</span>
-                                <div class="active-dot"></div>
                             </a>
                         </li>
                         <li role="none">
                             <a href="#" class="pill nav-item main-nav" onclick="switchTab('worlds', this)">
                                 <i data-lucide="globe" class="pill-icon"></i>
                                 <span class="pill-label">WORLDS</span>
-                                <div class="active-dot"></div>
                             </a>
                         </li>
                         <li role="none">
                             <a href="#" class="pill nav-item main-nav" onclick="switchTab('settings', this)">
                                 <i data-lucide="settings" class="pill-icon"></i>
                                 <span class="pill-label">SETTINGS</span>
-                                <div class="active-dot"></div>
                             </a>
                         </li>
                     </ul>
                 </div>
-
+            </nav>
 
             <div class="mobile-menu" id="mobileMenu">
                 <div class="mobile-menu-header" style="position: absolute; top: 0; left: 0; width: 100%; padding: 30px; display: flex; justify-content: space-between; align-items: center;">
-                    <div class="dx-logo">DX.</div>
-                    <!-- Removed redundant button to fix Double-X glitch -->
+                    <div class="valqore-logo">VALQ<span class="logo-accent">ORE</span></div>
                 </div>
                 <ul class="mobile-menu-list">
                     <li><a href="#" class="pill" onclick="switchTab('dashboard'); toggleMobileMenu()">
@@ -126,7 +119,7 @@
 
             <div class="topbar-right desktop-only">
                 <select class="server-select">
-                    <option>Delta X Server</option>
+                    <option>⚡ Valqore Node 01</option>
                 </select>
             </div>
         </header>
@@ -142,36 +135,39 @@
                     <div id="connectionInfoCard" class="glass-panel mb-20"
                         style="display: none; align-items: center; justify-content: space-between;">
                         <div>
-                            <h2 style="margin-bottom: 5px;">Connection Info</h2>
-                            <p style="color: #a0abb8;">Use this IP address to join your server in Minecraft.</p>
+                            <h2 style="margin-bottom: 5px;">Server Direct IP</h2>
+                            <p style="color: #9E9EA8; font-size: 0.88rem;">Use this direct address to join your Minecraft server.</p>
                         </div>
                         <div style="display: flex; gap: 15px; align-items: center;">
                             <code id="serverIpDisplay" class="ip-display">Loading...</code>
-                            <button class="action-btn restart copy-btn" onclick="copyIp()">Copy IP</button>
+                            <button class="action-btn restart copy-btn" onclick="copyIp()">
+                                <i data-lucide="copy" style="width: 16px; height: 16px;"></i> Copy IP
+                            </button>
                         </div>
                     </div>
 
                     <div class="glass-panel status-panel mb-20">
-                        <h2>Server status</h2>
+                        <h2>System Metrics & Resources</h2>
                         <div class="rings-wrapper">
                             <div class="status-ring">
                                 <div class="circular-chart" id="ring-ram" style="--percentage: 0;">
                                     <div class="circle-inner"><span class="percent-text" id="text-ram">0%</span></div>
                                 </div>
-                                <p class="ring-label">Ram-usage</p>
+                                <p class="ring-label">Memory Usage</p>
                                 <p class="ring-sub" id="sub-ram">(0/2048MB)</p>
                             </div>
                             <div class="status-ring">
                                 <div class="circular-chart" id="ring-cpu" style="--percentage: 0;">
                                     <div class="circle-inner"><span class="percent-text" id="text-cpu">0%</span></div>
                                 </div>
-                                <p class="ring-label">CPU-Usage</p>
+                                <p class="ring-label">CPU Load</p>
+                                <p class="ring-sub" id="sub-cpu">Processor Core</p>
                             </div>
                             <div class="status-ring">
                                 <div class="circular-chart" id="ring-slot" style="--percentage: 0;">
                                     <div class="circle-inner"><span class="percent-text" id="text-slot">0%</span></div>
                                 </div>
-                                <p class="ring-label">Online Players</p>
+                                <p class="ring-label">Active Players</p>
                                 <p class="ring-sub" id="sub-slot">(0/20)</p>
                             </div>
                             <div class="status-ring">
@@ -179,7 +175,8 @@
                                     <div class="circle-inner"><span class="percent-text" id="text-overload">0%</span>
                                     </div>
                                 </div>
-                                <p class="ring-label">Backup Countdown</p>
+                                <p class="ring-label">Backup Cycle</p>
+                                <p class="ring-sub" id="sub-overload">Cloud Snapshot</p>
                             </div>
                         </div>
                     </div>
@@ -187,72 +184,55 @@
                     <div class="glass-panel mb-20">
                         <h2>Power Controls</h2>
                         <div class="btn-group">
-                            <button class="action-btn start" onclick="apiCall('/api/start')">Start Server</button>
-                            <button class="action-btn stop" onclick="apiCall('/api/stop')">Stop Server</button>
-                            <button class="action-btn restart" onclick="apiCall('/api/restart')">Restart Server</button>
+                            <button class="action-btn start" onclick="apiCall('/api/start')">
+                                <i data-lucide="play" style="width:16px;height:16px;"></i> Start Server
+                            </button>
+                            <button class="action-btn stop" onclick="apiCall('/api/stop')">
+                                <i data-lucide="square" style="width:16px;height:16px;"></i> Stop Server
+                            </button>
+                            <button class="action-btn restart" onclick="apiCall('/api/restart')">
+                                <i data-lucide="rotate-cw" style="width:16px;height:16px;"></i> Restart Server
+                            </button>
                         </div>
                     </div>
 
                     <div class="glass-panel">
-                        <h2 style="margin-bottom: 15px;">Live Console Activity</h2>
-                        <div id="dashboardLog" class="terminal-log" style="height: 200px; font-size: 0.85rem;">Waiting
-                            for server logs...</div>
+                        <h2 style="margin-bottom: 15px;">Live Terminal Stream</h2>
+                        <div id="dashboardLog" class="terminal-log" style="height: 220px; font-size: 0.85rem;">Waiting for server logs...</div>
                     </div>
                 </div>
 
                 <div id="tab-worlds" class="tab-content">
                     <div class="glass-panel mb-20">
-                        <div class="responsive-header">
+                        <div class="responsive-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <div style="display: flex; align-items: center; gap: 15px;">
-                                <div class="software-icon" style="margin: 0; width: 45px; height: 45px; border-radius: 12px;">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="12" cy="12" r="10"></circle>
-                                        <path d="M2 12h20"></path>
-                                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                                    </svg>
+                                <div class="software-icon" style="margin: 0; width: 48px; height: 48px; border-radius: 12px; background: rgba(109, 40, 217, 0.15); border-color: rgba(109, 40, 217, 0.3);">
+                                    <i data-lucide="globe" style="color: var(--secondary-light); width: 24px; height: 24px;"></i>
                                 </div>
                                 <div>
                                     <h2 style="margin: 0;">World Management</h2>
-                                    <p style="color: #a0abb8; font-size: 0.85rem;">Active: <span style="color: #fff; font-weight: bold;">world</span></p>
+                                    <p style="color: #9E9EA8; font-size: 0.85rem;">Active Level: <span style="color: var(--primary); font-weight: 700;">world</span></p>
                                 </div>
                             </div>
-                            <div class="responsive-btn-group">
+                            <div class="responsive-btn-group" style="display: flex; gap: 10px;">
                                 <input type="file" id="worldUploadInput" style="display: none;" accept=".zip" onchange="uploadWorldZip(this.files[0])">
-                                <button class="action-btn start" style="padding: 6px 16px; font-size: 0.85rem;" onclick="document.getElementById('worldUploadInput').click()">
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px;">
-                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                            <polyline points="17 8 12 3 7 8"></polyline>
-                                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                                        </svg>
-                                        <span>Upload (.zip)</span>
-                                    </div>
+                                <button class="action-btn start" style="padding: 8px 18px; font-size: 0.82rem;" onclick="document.getElementById('worldUploadInput').click()">
+                                    <i data-lucide="upload" style="width: 15px; height: 15px;"></i> Upload (.zip)
                                 </button>
-                                <button class="action-btn restart" style="padding: 6px 16px; font-size: 0.85rem;" onclick="switchTab('files'); loadFiles('world')">
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px;">
-                                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                                        </svg>
-                                        <span>Files</span>
-                                    </div>
+                                <button class="action-btn restart" style="padding: 8px 18px; font-size: 0.82rem;" onclick="switchTab('files'); loadFiles('world')">
+                                    <i data-lucide="folder" style="width: 15px; height: 15px;"></i> Explore Files
                                 </button>
-                                <button class="action-btn stop" style="padding: 6px 16px; font-size: 0.85rem;" onclick="regenerateWorld()">
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px;">
-                                            <path d="M23 4v6h-6"></path>
-                                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                                        </svg>
-                                        <span>Regenerate</span>
-                                    </div>
+                                <button class="action-btn stop" style="padding: 8px 18px; font-size: 0.82rem;" onclick="regenerateWorld()">
+                                    <i data-lucide="refresh-cw" style="width: 15px; height: 15px;"></i> Regenerate
                                 </button>
                             </div>
                         </div>
-                        <div style="background: rgba(255,255,255,0.03); border-radius: 15px; padding: 20px; border: 1px solid rgba(255,255,255,0.05);">
-                            <h3 style="margin-bottom: 10px; font-size: 1rem;">Information</h3>
-                            <ul style="color: #a0abb8; font-size: 0.9rem; line-height: 1.6; margin-left: 20px;">
-                                <li><strong>Upload:</strong> Only `.zip` files are accepted. The panel will automatically unzip and replace your current world.</li>
-                                <li><strong>Regenerate:</strong> This will completely wipe your current world folders and generate a fresh spawn.</li>
-                                <li><strong>Auto-Restart:</strong> Both Upload and Regenerate will temporarily stop the server and restart it once complete.</li>
+                        <div style="background: rgba(24,24,30,0.5); border-radius: 15px; padding: 20px; border: 1px solid rgba(255,255,255,0.06);">
+                            <h3 style="margin-bottom: 10px; font-size: 1rem; color: #fff;">World Management Guidelines</h3>
+                            <ul style="color: #9E9EA8; font-size: 0.88rem; line-height: 1.6; margin-left: 20px;">
+                                <li><strong>Upload:</strong> Only standard `.zip` files containing Minecraft world formats are accepted.</li>
+                                <li><strong>Regenerate:</strong> Completely deletes existing world chunks and generates a brand new terrain spawn.</li>
+                                <li><strong>Auto-Restart:</strong> Both upload and regenerate operations will gracefully stop the engine and restart it.</li>
                             </ul>
                         </div>
                     </div>
@@ -261,23 +241,25 @@
                 <div id="tab-players" class="tab-content">
                     <div class="glass-panel">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                            <h2>Online Players</h2>
-                            <button class="action-btn restart" style="padding: 8px 15px; font-size: 0.8rem;" onclick="fetchPlayers()">🔄 Refresh</button>
+                            <h2>Connected Players</h2>
+                            <button class="action-btn restart" style="padding: 8px 16px; font-size: 0.82rem;" onclick="fetchPlayers()">
+                                <i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i> Refresh
+                            </button>
                         </div>
                         <div id="playerList" class="player-list-container">
-                            <div class="no-players">No players online.</div>
+                            <div class="no-players">No players currently connected.</div>
                         </div>
                     </div>
                 </div>
 
                 <div id="tab-console" class="tab-content">
-                    <div class="glass-panel" style="padding: 20px;">
-                        <h2 style="margin-bottom: 15px;">Action Log Console</h2>
-                        <div id="log" class="terminal-log">Waiting for server logs...</div>
+                    <div class="glass-panel" style="padding: 24px;">
+                        <h2 style="margin-bottom: 15px;">Interactive Server Terminal</h2>
+                        <div id="log" class="terminal-log">Waiting for server stream...</div>
                         <div class="console-input-wrapper mt-20">
                             <span class="prompt-arrow">></span>
                             <input type="text" id="consoleInput" class="console-input"
-                                placeholder="Type a Minecraft command here (e.g. op DeltaX) and press Enter...">
+                                placeholder="Execute command (e.g. op PlayerName, gamemode creative, say Hello)...">
                         </div>
                     </div>
                 </div>
@@ -288,16 +270,17 @@
                         <div class="file-header">
                             <div>
                                 <h2 id="currentPathDisplay" style="margin: 0;">/root</h2>
-                                <p style="color: #8892a0; font-size: 0.8rem; margin-top: 5px;">Drag & drop or use the button to upload</p>
+                                <p style="color: #9E9EA8; font-size: 0.82rem; margin-top: 5px;">Drag & drop files or click upload to manage your server assets</p>
                             </div>
                             <div style="display: flex; gap: 10px;">
                                 <input type="file" id="multiFileUploadInput" style="display: none;" multiple onchange="handleMultiUpload(this.files)">
-                                <button class="action-btn start" style="width: auto; padding: 10px 20px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px;" onclick="document.getElementById('multiFileUploadInput').click()">
+                                <button class="action-btn start" style="width: auto; padding: 10px 20px; font-size: 0.85rem;" onclick="document.getElementById('multiFileUploadInput').click()">
                                     <i data-lucide="upload-cloud" style="width: 16px; height: 16px;"></i>
                                     Upload Files
                                 </button>
                             </div>
                         </div>
+
                         <div class="file-list-container">
                             <table class="file-table">
                                 <thead>
@@ -305,7 +288,7 @@
                                         <th>Name</th>
                                         <th>Size</th>
                                         <th>Last Modified</th>
-                                        <th style="width: 50px;">Actions</th>
+                                        <th style="width: 70px; text-align: right;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="fileListBody"></tbody>
@@ -316,24 +299,25 @@
                     <div id="fileEditor" class="glass-panel" style="display: none;">
                         <div class="file-header">
                             <div style="display: flex; align-items: center; gap: 12px;">
-                                <button class="action-btn restart" style="width: auto; padding: 6px 12px; display: flex; align-items: center;" onclick="closeEditor()">
+                                <button class="action-btn restart" style="width: auto; padding: 6px 12px;" onclick="closeEditor()">
                                     <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
                                 </button>
                                 <h2 id="editingFileName" style="margin: 0;">Editing: file.txt</h2>
                             </div>
-                            <button class="action-btn stop" style="width: auto; padding: 8px 15px;"
-                                onclick="closeEditor()">Close Editor</button>
+                            <button class="action-btn stop" style="width: auto; padding: 8px 16px;" onclick="closeEditor()">Close Editor</button>
                         </div>
                         <textarea id="fileEditorArea" class="editor-textarea"></textarea>
-                        <button class="action-btn start mt-20 w-100" onclick="saveFile()">Save Changes</button>
+                        <button class="action-btn start mt-20 w-100" onclick="saveFile()">
+                            <i data-lucide="save" style="width:16px;height:16px;"></i> Save Changes
+                        </button>
                     </div>
                 </div>
 
                 <div id="tab-installer" class="tab-content">
                     <div id="softwareSelectionStep">
                         <div class="glass-panel mb-20" style="padding: 30px;">
-                            <h2 style="margin-bottom: 10px;">Select Game Server</h2>
-                            <p style="color: #a0abb8; margin-bottom: 25px;">Choose the type of Minecraft server you want to install.</p>
+                            <h2 style="margin-bottom: 8px;">Select Server Engine</h2>
+                            <p style="color: #9E9EA8; margin-bottom: 25px; font-size: 0.9rem;">Choose the engine core you would like Valqore to deploy.</p>
                             
                             <div class="software-card-grid">
                                 <div class="software-card" onclick="selectSoftware('vanilla')">
@@ -341,35 +325,35 @@
                                         <img src="https://mintservers.com/jars/large/vanilla.png" alt="Vanilla" class="software-logo-img">
                                     </div>
                                     <h3>Vanilla</h3>
-                                    <p>Official Minecraft</p>
+                                    <p>Official Mojang Server</p>
                                 </div>
                                 <div class="software-card" onclick="selectSoftware('paper')">
                                     <div class="software-icon">
                                         <img src="https://docs.papermc.io/_astro/papermc_logo.min_ZQDdQq.webp" alt="PaperMC" class="software-logo-img">
                                     </div>
                                     <h3>PaperMC</h3>
-                                    <p>High Performance</p>
+                                    <p>High Performance & Plugins</p>
                                 </div>
                                 <div class="software-card" onclick="selectSoftware('fabric')">
                                     <div class="software-icon">
                                         <img src="https://media.forgecdn.net/avatars/thumbnails/185/822/256/256/636829723898798601.png" alt="Fabric" class="software-logo-img">
                                     </div>
                                     <h3>Fabric</h3>
-                                    <p>Modern Modding</p>
+                                    <p>Lightweight Modern Modding</p>
                                 </div>
                                 <div class="software-card" onclick="selectSoftware('forge')">
                                     <div class="software-icon">
                                         <img src="https://raw.githubusercontent.com/MomentariyModder/branding/main/sites/links/curseforge.png" alt="Forge" class="software-logo-img">
                                     </div>
                                     <h3>Forge</h3>
-                                    <p>Classic Modding</p>
+                                    <p>Classic Modpack Ecosystem</p>
                                 </div>
                                 <div class="software-card" onclick="selectSoftware('neoforge')">
                                     <div class="software-icon">
                                         <img src="https://avatars.githubusercontent.com/u/173360952?s=200&v=4" alt="NeoForge" class="software-logo-img">
                                     </div>
                                     <h3>NeoForge</h3>
-                                    <p>Modern Modding</p>
+                                    <p>Next-Gen Modding Engine</p>
                                 </div>
                             </div>
                         </div>
@@ -382,7 +366,7 @@
                                     <button class="action-btn restart" onclick="showStep('softwareSelectionStep')">
                                         <i data-lucide="arrow-left" style="width:16px;height:16px;"></i> BACK
                                     </button>
-                                    <h2>Select Version for <span id="selectedSoftwareName">...</span></h2>
+                                    <h2>Select Build Version for <span id="selectedSoftwareName" style="color: var(--primary);">...</span></h2>
                                 </div>
                                 <div class="console-input-wrapper version-search-wrapper">
                                     <i data-lucide="search" class="search-icon"></i>
@@ -391,61 +375,43 @@
                             </div>
                         </div>
                         <div class="marketplace-grid" id="marketplaceGrid">
-                            <p style="color: #a0abb8;">Loading versions...</p>
+                            <p style="color: #9E9EA8;">Fetching release matrix...</p>
                         </div>
                     </div>
                 </div>
 
                 <div id="tab-settings" class="tab-content">
                     <div class="glass-panel">
-                        <h2>Backup & Cloud Management</h2>
+                        <h2>Cloud & Backup Settings</h2>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-                            <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05);">
-                                <h3 style="font-size: 1rem; margin-bottom: 10px;">Manual Backup</h3>
-                                <p style="font-size: 0.8rem; color: #a0abb8; margin-bottom: 15px;">Instantly zip your world and download it to your PC. Files are automatically deleted from VPS after download.</p>
-                                <button class="action-btn restart w-100" onclick="downloadBackup()">Create & Download</button>
+                            <div style="background: rgba(24,24,30,0.5); padding: 22px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06);">
+                                <h3 style="font-size: 1.05rem; margin-bottom: 10px; color: #fff;">Manual Snapshot</h3>
+                                <p style="font-size: 0.82rem; color: #9E9EA8; margin-bottom: 18px;">Instantly generate a full world archive and download it directly to your PC.</p>
+                                <button class="action-btn restart w-100" onclick="downloadBackup()">
+                                    <i data-lucide="download" style="width:16px;height:16px;"></i> Create & Download
+                                </button>
                             </div>
                             
-                            <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden;">
+                            <div style="background: rgba(24,24,30,0.5); padding: 22px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); position: relative; overflow: hidden;">
                                 <div class="coming-soon-overlay" style="pointer-events: auto;"><span>COMING SOON</span></div>
                                 <div style="pointer-events: none; opacity: 0.4;">
-                                    <h3 style="font-size: 1rem; margin-bottom: 10px;">Cloud Storage</h3>
-                                    <p style="font-size: 0.8rem; color: #a0abb8; margin-bottom: 15px;">Connect your Google Drive to enable automated off-site backups.</p>
-                                    <div id="gdrive-status" style="margin-bottom: 15px; font-size: 0.8rem; color: #ff4c4c;">Status: Not Connected</div>
-                                    <button class="action-btn start w-100" onclick="connectGoogleDrive()" id="btn-gdrive">Connect Google Drive</button>
-                                    <button class="action-btn start w-100 mt-10" onclick="manualGDriveBackup()" id="btn-gdrive-backup" style="display:none; background: linear-gradient(135deg, #00ff7f, #00b359);">Manual Cloud Backup</button>
-                                    <button class="action-btn stop w-100 mt-10" onclick="unlinkGDrive()" id="btn-gdrive-unlink" style="display:none; background: rgba(255, 76, 76, 0.1); border: 1px solid rgba(255, 76, 76, 0.2); color: #ff4c4c;">Unlink Account</button>
-                                    
-                                    <div id="gdrive-verify-box" style="display: none; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; text-align: left;">
-                                        <h4 style="font-size: 0.85rem; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-                                            <i data-lucide="info" style="width: 16px; height: 16px; color: #ff007f;"></i>
-                                            Follow these steps to link:
-                                        </h4>
-                                        <ol style="font-size: 0.75rem; color: #a0abb8; padding-left: 15px; margin-bottom: 15px; line-height: 1.5;">
-                                            <li>Log in to Google in the new window.</li>
-                                            <li>You will see a <b>"This site can't be reached"</b> page. This is normal.</li>
-                                            <li>Look at the <b>Address Bar</b> at the top of that page.</li>
-                                            <li>Copy the long code after <b>"code="</b> and paste it below.</li>
-                                        </ol>
-                                        <div style="position: relative;">
-                                            <input type="text" id="gdrive-code" placeholder="Paste your Google code here..." class="server-input" style="padding-right: 40px;">
-                                            <i data-lucide="key" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: rgba(255,255,255,0.2);"></i>
-                                        </div>
-                                        <button class="action-btn start w-100 mt-10" onclick="verifyGDriveCode()" style="background: linear-gradient(135deg, #ff007f, #ff4c4c);">
-                                            Verify & Complete Link
-                                        </button>
-                                    </div>
+                                    <h3 style="font-size: 1.05rem; margin-bottom: 10px; color: #fff;">Google Cloud Drive</h3>
+                                    <p style="font-size: 0.82rem; color: #9E9EA8; margin-bottom: 15px;">Connect your Google Drive account for automated off-site cloud replication.</p>
+                                    <div id="gdrive-status" style="margin-bottom: 15px; font-size: 0.82rem; color: #ff4c4c;">Status: Not Connected</div>
+                                    <button class="action-btn start w-100" onclick="connectGoogleDrive()" id="btn-gdrive">Link Google Account</button>
+                                    <button class="action-btn start w-100 mt-10" onclick="manualGDriveBackup()" id="btn-gdrive-backup" style="display:none;">Upload Cloud Snapshot</button>
+                                    <button class="action-btn stop w-100 mt-10" onclick="unlinkGDrive()" id="btn-gdrive-unlink" style="display:none;">Unlink Account</button>
                                 </div>
                             </div>
 
-                            <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden;">
+                            <div style="background: rgba(24,24,30,0.5); padding: 22px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); position: relative; overflow: hidden;">
                                 <div class="coming-soon-overlay" style="pointer-events: auto;"><span>COMING SOON</span></div>
                                 <div style="pointer-events: none; opacity: 0.4;">
-                                    <h3 style="font-size: 1rem; margin-bottom: 10px;">Auto Backup</h3>
-                                    <p style="font-size: 0.8rem; color: #a0abb8; margin-bottom: 15px;">Scheduled world backups to Google Drive. Backups are automatically purged from VPS.</p>
+                                    <h3 style="font-size: 1.05rem; margin-bottom: 10px; color: #fff;">Automated Schedule</h3>
+                                    <p style="font-size: 0.82rem; color: #9E9EA8; margin-bottom: 15px;">Configure automatic cron backup routines to sync without manual intervention.</p>
                                     <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
-                                        <span style="font-size: 0.8rem; color: #a0abb8;">Interval:</span>
-                                        <select id="autoBackupInterval" class="server-select" style="flex: 1; padding: 5px 10px;">
+                                        <span style="font-size: 0.82rem; color: #9E9EA8;">Interval:</span>
+                                        <select id="autoBackupInterval" class="server-select" style="flex: 1; padding: 6px 12px;">
                                             <option value="1">Every 1 Hour</option>
                                             <option value="6">Every 6 Hours</option>
                                             <option value="12">Every 12 Hours</option>
@@ -453,14 +419,17 @@
                                             <option value="48">Every 48 Hours</option>
                                         </select>
                                     </div>
-                                    <button class="action-btn start w-100" onclick="saveAutoBackupConfig()">Save Configuration</button>
+                                    <button class="action-btn start w-100" onclick="saveAutoBackupConfig()">Save Frequency</button>
                                 </div>
                             </div>
                         </div>
 
-                        <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; margin-top: 30px;">
-                            <h3 style="color: #ff4c4c; margin-bottom: 10px;">Danger Zone</h3>
-                            <button class="action-btn stop w-100" onclick="deleteServer()">Delete Server Completely</button>
+                        <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px; margin-top: 30px;">
+                            <h3 style="color: var(--danger-color); margin-bottom: 10px;">Danger Zone</h3>
+                            <p style="color: #9E9EA8; font-size: 0.82rem; margin-bottom: 15px;">Irreversibly delete server jars, configurations, and world data from the VPS container.</p>
+                            <button class="action-btn stop w-100" onclick="deleteServer()">
+                                <i data-lucide="trash-2" style="width:16px;height:16px;"></i> Delete Server Files Completely
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -470,15 +439,11 @@
             <footer class="app-footer">
                 <div class="footer-content">
                     <div class="footer-left">
-                        <p>&copy; 2026 Delta X. All rights reserved.</p>
-                        <p class="dev-credit">Developed by Zamir</p>
+                        <p>&copy; 2026 Valqore Hosting. Powered by Cinematic Engine.</p>
                     </div>
                     <div class="social-links">
                         <a href="#" class="social-icon discord" aria-label="Discord">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
-                        </a>
-                        <a href="#" class="social-icon youtube" aria-label="YouTube">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
                         </a>
                     </div>
                 </div>
