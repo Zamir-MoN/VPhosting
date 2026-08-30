@@ -605,7 +605,7 @@ async def start_server():
                 alloc_mb = 10240
                 
             optimized_sh = f"""#!/bin/bash
-java -Xms4096M -Xmx{alloc_mb}M \\
+java -Xms10240M -Xmx10240M \\
   --add-modules=jdk.incubator.vector \\
   -Djava.net.preferIPv4Stack=true \\
   -XX:+UseG1GC \\
@@ -1354,7 +1354,7 @@ if [ -f "run.sh" ]; then
     sed -i 's/read -p.*/echo "Server stopped."/g' run.sh
     ./run.sh
 elif [ -f "server.jar" ]; then
-    java -Xms4096M -Xmx10240M \\
+    java -Xms10240M -Xmx10240M \\
       --add-modules=jdk.incubator.vector \\
       -Djava.net.preferIPv4Stack=true \\
       -XX:+UseG1GC \\
@@ -1378,7 +1378,7 @@ elif [ -f "server.jar" ]; then
       -Daikars.new.flags=true \\
       -jar server.jar nogui
 elif ls forge-*.jar 1> /dev/null 2>&1; then
-    java -Xmx10240M -Xms4096M -jar forge-*.jar nogui
+    java -Xms10240M -Xmx10240M -jar forge-*.jar nogui
 else
     echo "No executable jar found!"
 fi
