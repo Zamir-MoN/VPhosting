@@ -238,24 +238,39 @@ def get_stats():
                     lines = f.readlines()
                     
                 current_active = set()
-                for line in lines[-300:]:
-                    if "logged in with entity id" in line or "joined the game" in line:
-                        parts = line.split("INFO]: ")
-                        if len(parts) > 1:
-                            user = parts[1].split("[")[0].split("joined the game")[0].strip()
-                            if user and not user.startswith("/"):
-                                current_active.add(user)
-                    elif "left the game" in line or "lost connection" in line:
-                        parts = line.split("INFO]: ")
-                        if len(parts) > 1:
-                            user = parts[1].split("left the game")[0].split("lost connection")[0].strip()
-                            if user in current_active:
-                                current_active.remove(user)
-                    elif "players online:" in line:
-                        names_part = line.split("players online:")[1].strip()
+                for line in lines[-500:]:
+                    clean_line = line.strip()
+                    # 1. Join patterns
+                    if "joined the game" in clean_line:
+                        # e.g. [12:00:00 INFO]: ZAMIR909 joined the game
+                        user = clean_line.split("joined the game")[0].split("]:")[-1].strip()
+                        if user and not user.startswith("/") and len(user.split()) == 1:
+                            current_active.add(user)
+                    elif "logged in with entity id" in clean_line:
+                        # e.g. [12:00:00 INFO]: UUID of player ZAMIR909 is ... OR ZAMIR909[/127.0.0.1:12345] logged in
+                        parts = clean_line.split("]:")[-1].strip().split("[")[0].strip()
+                        if parts and len(parts.split()) == 1 and not parts.startswith("/"):
+                            current_active.add(parts)
+                    # 2. Leave / Disconnect patterns
+                    elif "left the game" in clean_line:
+                        user = clean_line.split("left the game")[0].split("]:")[-1].strip()
+                        if user in current_active:
+                            current_active.remove(user)
+                    elif "lost connection:" in clean_line or "lost connection" in clean_line:
+                        user = clean_line.split("lost connection")[0].split("]:")[-1].strip()
+                        if user in current_active:
+                            current_active.remove(user)
+                    elif "Disconnecting " in clean_line:
+                        parts = clean_line.split("Disconnecting ")[-1].split(":")[0].strip()
+                        if parts in current_active:
+                            current_active.remove(parts)
+                    # 3. Direct player list output (e.g. from /list)
+                    elif "players online:" in clean_line:
+                        names_part = clean_line.split("players online:")[-1].strip()
                         if names_part:
                             for n in names_part.split(','):
-                                if n.strip(): current_active.add(n.strip())
+                                clean_n = n.strip()
+                                if clean_n: current_active.add(clean_n)
 
                 online_players = list(current_active)
             except Exception as e:
