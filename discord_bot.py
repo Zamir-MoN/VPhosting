@@ -436,6 +436,8 @@ class LiveConsoleView(discord.ui.View):
             timestamp=discord.utils.utcnow()
         )
         embed.set_footer(text="⚡ Valqore Live Console • Click Refresh to fetch latest lines", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        if interaction.message and interaction.message.id in active_panel_messages:
+            active_panel_messages[interaction.message.id]["mode"] = "console"
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="Send Command", style=discord.ButtonStyle.success, emoji="💻", custom_id="mc_btn_console_sendcmd")
@@ -446,6 +448,8 @@ class LiveConsoleView(discord.ui.View):
 
     @discord.ui.button(label="Back", style=discord.ButtonStyle.danger, emoji="↩️", custom_id="mc_btn_console_back")
     async def btn_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.message and interaction.message.id in active_panel_messages:
+            active_panel_messages[interaction.message.id]["mode"] = "options"
         embed = build_status_embed()
         embed.set_footer(text="⚙️ More Options Menu • Select an action below or click Back", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
         await interaction.response.edit_message(embed=embed, view=MoreOptionsView())
@@ -459,6 +463,8 @@ class MoreOptionsView(discord.ui.View):
     async def btn_live_console(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        if interaction.message and interaction.message.id in active_panel_messages:
+            active_panel_messages[interaction.message.id]["mode"] = "console"
         logs = get_clean_logs(18)
         embed = discord.Embed(
             title="📜 LIVE MINECRAFT CONSOLE",
@@ -494,6 +500,8 @@ class MoreOptionsView(discord.ui.View):
 
     @discord.ui.button(label="Back", style=discord.ButtonStyle.danger, emoji="↩️", custom_id="mc_btn_opt_back")
     async def btn_opt_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.message and interaction.message.id in active_panel_messages:
+            active_panel_messages[interaction.message.id]["mode"] = "main"
         embed = build_status_embed()
         await interaction.response.edit_message(embed=embed, view=ServerControlView())
 
@@ -621,6 +629,8 @@ class ServerControlView(discord.ui.View):
     async def btn_more_options(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ You do not have permission to manage this server.", ephemeral=True)
+        if interaction.message and interaction.message.id in active_panel_messages:
+            active_panel_messages[interaction.message.id]["mode"] = "options"
         embed = build_status_embed()
         embed.set_footer(text="⚙️ More Options Menu • Select an action below or click Back", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
         await interaction.response.edit_message(embed=embed, view=MoreOptionsView())
@@ -657,16 +667,49 @@ async def auto_refresh_panels():
     if not active_panel_messages:
         return
     try:
-        embed = build_status_embed()
         dead_keys = []
-        for key, val in list(active_panel_messages.items()):
-            msg = val[1] if isinstance(val, (list, tuple)) else val
-            try: await msg.edit(embed=embed)
-            except discord.NotFound: dead_keys.append(key)
-            except: pass
+        for key, info in list(active_panel_messages.items()):
+            if isinstance(info, dict):
+                msg = info.get("msg")
+                mode = info.get("mode", "main")
+            elif isinstance(info, (list, tuple)):
+                msg = info[1]
+                mode = "main"
+            else:
+                msg = info
+                mode = "main"
+
+            if not msg:
+                dead_keys.append(key)
+                continue
+
+            try:
+                if mode == "console":
+                    logs = get_clean_logs(18)
+                    c_embed = discord.Embed(
+                        title="📜 LIVE MINECRAFT CONSOLE",
+                        description=f"```fix\n{logs}\n```",
+                        color=discord.Color.from_rgb(230, 255, 0),
+                        timestamp=discord.utils.utcnow()
+                    )
+                    c_embed.set_footer(text="⚡ Valqore Live Console • Live Updating", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+                    await msg.edit(embed=c_embed)
+                elif mode == "options":
+                    # Keep options view static without flipping back to main
+                    pass
+                else:
+                    # Main panel mode
+                    m_embed = build_status_embed()
+                    await msg.edit(embed=m_embed)
+            except discord.NotFound:
+                dead_keys.append(key)
+            except:
+                pass
+
         for k in dead_keys:
             active_panel_messages.pop(k, None)
-    except: pass
+    except:
+        pass
 
 @tasks.loop(seconds=20)
 async def update_presence():
@@ -698,18 +741,20 @@ async def cmd_panel(interaction: discord.Interaction):
     # Clean up and delete any previous panel message in this channel
     channel_id = interaction.channel_id
     to_delete = []
-    for msg_id, (m_chan_id, msg) in list(active_panel_messages.items()):
-        if m_chan_id == channel_id:
-            to_delete.append((msg_id, msg))
-    for msg_id, msg in to_delete:
-        try: await msg.delete()
+    for msg_id, info in list(active_panel_messages.items()):
+        c_id = info.get("channel_id") if isinstance(info, dict) else (info[0] if isinstance(info, (list, tuple)) else None)
+        msg_obj = info.get("msg") if isinstance(info, dict) else (info[1] if isinstance(info, (list, tuple)) else info)
+        if c_id == channel_id:
+            to_delete.append((msg_id, msg_obj))
+    for msg_id, msg_obj in to_delete:
+        try: await msg_obj.delete()
         except: pass
         active_panel_messages.pop(msg_id, None)
 
     view = ServerControlView()
     embed = build_status_embed()
     msg = await interaction.followup.send(embed=embed, view=view)
-    active_panel_messages[msg.id] = (channel_id, msg)
+    active_panel_messages[msg.id] = {"channel_id": channel_id, "msg": msg, "mode": "main"}
 
 
 @bot.command(name="panel")
@@ -720,11 +765,13 @@ async def p_panel(ctx):
     # Clean up and delete any previous panel message in this channel
     channel_id = ctx.channel.id
     to_delete = []
-    for msg_id, (m_chan_id, msg) in list(active_panel_messages.items()):
-        if m_chan_id == channel_id:
-            to_delete.append((msg_id, msg))
-    for msg_id, msg in to_delete:
-        try: await msg.delete()
+    for msg_id, info in list(active_panel_messages.items()):
+        c_id = info.get("channel_id") if isinstance(info, dict) else (info[0] if isinstance(info, (list, tuple)) else None)
+        msg_obj = info.get("msg") if isinstance(info, dict) else (info[1] if isinstance(info, (list, tuple)) else info)
+        if c_id == channel_id:
+            to_delete.append((msg_id, msg_obj))
+    for msg_id, msg_obj in to_delete:
+        try: await msg_obj.delete()
         except: pass
         active_panel_messages.pop(msg_id, None)
 
@@ -735,7 +782,7 @@ async def p_panel(ctx):
     view = ServerControlView()
     embed = build_status_embed()
     msg = await ctx.send(embed=embed, view=view)
-    active_panel_messages[msg.id] = (channel_id, msg)
+    active_panel_messages[msg.id] = {"channel_id": channel_id, "msg": msg, "mode": "main"}
 
 @bot.tree.command(name="status", description="Check live RAM, CPU, disk usage, and online players.")
 async def cmd_status(interaction: discord.Interaction):
