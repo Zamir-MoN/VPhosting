@@ -476,22 +476,12 @@ class ServerControlView(discord.ui.View):
         try: await interaction.message.edit(embed=build_status_embed(), view=self)
         except: pass
 
-    @discord.ui.button(label="Refresh", style=discord.ButtonStyle.secondary, emoji="🔃", custom_id="mc_btn_refresh")
-    async def btn_refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
-        pulse_embed = build_status_embed(
-            custom_status="🔄 **Fetching Latest Stats...**",
-            custom_color=discord.Color.blurple()
-        )
-        await interaction.response.edit_message(embed=pulse_embed, view=self)
-        await asyncio.sleep(0.4)
-        try: await interaction.message.edit(embed=build_status_embed(), view=self)
-        except: pass
-
     @discord.ui.button(label="Live Logs", style=discord.ButtonStyle.secondary, emoji="📜", custom_id="mc_btn_logs")
     async def btn_logs(self, interaction: discord.Interaction, button: discord.ui.Button):
         logs = get_latest_logs(15)
         if len(logs) > 1900: logs = logs[-1900:]
         await interaction.response.send_message(f"**📜 Recent Console Logs:**\n```ansi\n{logs}\n```", ephemeral=True)
+
 
 # ==========================================
 # BOT EVENTS & SILENT AUTO REFRESH LOOP
