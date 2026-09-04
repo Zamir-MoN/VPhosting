@@ -475,12 +475,6 @@ class MoreOptionsView(discord.ui.View):
         embed.set_footer(text="⚡ Valqore Live Console • Click Refresh to fetch latest lines", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
         await interaction.response.edit_message(embed=embed, view=LiveConsoleView())
 
-    @discord.ui.button(label="Console Command", style=discord.ButtonStyle.secondary, emoji="💻", custom_id="mc_btn_opt_cmd")
-    async def btn_cmd_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not is_admin(interaction):
-            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
-        await interaction.response.send_modal(SendConsoleCommandModal())
-
     @discord.ui.button(label="Player List", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="mc_btn_opt_players")
     async def btn_opt_players(self, interaction: discord.Interaction, button: discord.ui.Button):
         stats = get_stats_data()
