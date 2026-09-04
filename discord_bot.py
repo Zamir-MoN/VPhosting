@@ -357,21 +357,24 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     # Calculate real Minecraft Server Ping Latency
     import socket
     server_ping_ms = 0
-    ping_status = "Offline"
-    if stats["running"]:
-        try:
-            t_start = time.time()
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(0.5)
-            s.connect(('127.0.0.1', 25565))
-            s.close()
-            server_ping_ms = round((time.time() - t_start) * 1000)
-            ping_status = "Good" if server_ping_ms < 150 else "High"
-        except Exception:
-            server_ping_ms = 105
-            ping_status = "Good Connection"
+    is_socket_open = False
+    
+    try:
+        t_start = time.time()
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.3)
+        res = s.connect_ex(('127.0.0.1', 25565))
+        s.close()
+        if res == 0:
+            server_ping_ms = max(1, round((time.time() - t_start) * 1000))
+            is_socket_open = True
+    except Exception:
+        pass
+
+    if stats["running"] or is_socket_open:
+        ping_val = f"{server_ping_ms} ms" if is_socket_open else "Starting..."
     else:
-        ping_status = "Inactive"
+        ping_val = "Offline"
 
     embed.add_field(
         name="🧠 **MEMORY (RAM)**",
@@ -385,11 +388,9 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     )
     embed.add_field(
         name="📶 **SERVER PING**",
-        value=f"```fix\n{server_ping_ms} ms\n```",
+        value=f"```fix\n{ping_val}\n```",
         inline=True
     )
-
-
 
     # 3. Players Section
     players = stats["online_players"]
