@@ -979,7 +979,7 @@ class ServerControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Start", style=discord.ButtonStyle.success, emoji="▶️", custom_id="mc_btn_start")
+    @discord.ui.button(label="Start", style=discord.ButtonStyle.success, emoji="🟢", custom_id="mc_btn_start")
     async def btn_start(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ You do not have permission to manage this server.", ephemeral=True)
@@ -1023,7 +1023,7 @@ class ServerControlView(discord.ui.View):
         try: await interaction.message.edit(embed=build_status_embed(), view=self)
         except: pass
 
-    @discord.ui.button(label="Stop", style=discord.ButtonStyle.danger, emoji="⏹️", custom_id="mc_btn_stop")
+    @discord.ui.button(label="Stop", style=discord.ButtonStyle.danger, emoji="🛑", custom_id="mc_btn_stop")
     async def btn_stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ You do not have permission to manage this server.", ephemeral=True)
@@ -1056,7 +1056,7 @@ class ServerControlView(discord.ui.View):
         try: await interaction.message.edit(embed=build_status_embed(), view=self)
         except: pass
 
-    @discord.ui.button(label="Restart", style=discord.ButtonStyle.primary, emoji="🔄", custom_id="mc_btn_restart")
+    @discord.ui.button(label="Restart", style=discord.ButtonStyle.primary, emoji="🔁", custom_id="mc_btn_restart")
     async def btn_restart(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ You do not have permission to manage this server.", ephemeral=True)
