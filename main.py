@@ -351,9 +351,11 @@ def get_stats():
             "gamemode": default_gamemode
         })
 
+    detailed_status = get_server_detailed_state()
     return {
-        "status": "online" if is_running else "offline",
+        "status": detailed_status,
         "cpu_percent": cpu,
+
         "cpu_cores": cpu_cores,
         "ram_percent": ram,
         "ram_used_mb": ram_used_mb,
@@ -598,6 +600,40 @@ def is_server_running():
     if len(procs) > 0:
         return True
     return False
+
+def get_server_detailed_state():
+    """Returns 'online' (fully ready), 'starting' (booting JVM/loading plugins), or 'offline'."""
+    if not is_server_running():
+        return "offline"
+
+    # Check latest.log to see if Paper/Minecraft finished boot
+    log_path = os.path.join(MC_DIR, "logs", "latest.log")
+    if os.path.exists(log_path):
+        try:
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+            for line in reversed(lines[-80:]):
+                if ")! For help, type \"help\"" in line or "Done (" in line or "Ready for connections" in line:
+                    return "online"
+                if "Stopping server" in line or "Saving players" in line:
+                    return "stopping"
+        except:
+            pass
+
+    # If port 25565 is listening via socket, it's ready
+    import socket
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.3)
+        res = sock.connect_ex(('127.0.0.1', 25565))
+        sock.close()
+        if res == 0:
+            return "online"
+    except:
+        pass
+
+    return "starting"
+
 
 @app.post("/api/start")
 async def start_server():

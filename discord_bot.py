@@ -142,10 +142,12 @@ def get_stats_data():
     # 1. Try FastAPI stats endpoint for 100% exact sync with web dashboard
     api_stats = call_api("stats", method="GET")
     if api_stats and isinstance(api_stats, dict):
-        is_running = (api_stats.get("status") == "online")
+        status_val = api_stats.get("status", "offline")
+        is_running = (status_val in ["online", "starting"])
         online_p = [p["name"] for p in api_stats.get("online_players", []) if isinstance(p, dict)]
         return {
             "running": is_running,
+            "raw_status": status_val,
             "ram_percent": api_stats.get("ram_percent", 0),
             "ram_used_mb": api_stats.get("ram_used_mb", 0),
             "ram_allocated_mb": api_stats.get("ram_allocated_mb", 4096),
@@ -155,6 +157,7 @@ def get_stats_data():
             "players_count": len(online_p),
             "max_players": api_stats.get("max_players", 50)
         }
+
 
     # 2. Local fallback stats
     running = is_server_running()
@@ -247,8 +250,17 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
         status_text = custom_status
         color = custom_color or discord.Color.gold()
     else:
-        status_text = "🟢 **Online**" if stats["running"] else "🔴 **Offline**"
-        color = discord.Color.green() if stats["running"] else discord.Color.red()
+        raw_status = stats.get("raw_status", "online" if stats["running"] else "offline")
+        if raw_status == "online":
+            status_text = "🟢 **Online (Ready to Join)**"
+            color = discord.Color.green()
+        elif raw_status == "starting":
+            status_text = "🟡 **Starting (Loading World & Plugins...)** ⏳"
+            color = discord.Color.gold()
+        else:
+            status_text = "🔴 **Offline**"
+            color = discord.Color.red()
+
 
     desc = f"**Server Status:** {status_text}"
     if progress_bar:
