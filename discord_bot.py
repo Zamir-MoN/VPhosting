@@ -426,7 +426,7 @@ class MoreOptionsView(discord.ui.View):
             embed.description = "*No players currently online on the server.*"
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @discord.ui.button(label="Back to Controls", style=discord.ButtonStyle.danger, emoji="⬅️", custom_id="mc_btn_opt_back")
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.danger, emoji="↩️", custom_id="mc_btn_opt_back")
     async def btn_opt_back(self, interaction: discord.Interaction, button: discord.ui.Button):
         embed = build_status_embed()
         await interaction.response.edit_message(embed=embed, view=ServerControlView())
