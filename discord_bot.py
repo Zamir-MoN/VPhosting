@@ -930,18 +930,18 @@ class ServerControlView(discord.ui.View):
 async def on_ready():
     print(f"🤖 Bot Logged in as {bot.user.name} ({bot.user.id})")
     
-    # Instant Guild Sync for all connected servers so slash commands appear immediately without Discord cache delay
+    # 1. Clean up any leftover guild-scoped commands from all guilds to prevent duplicate slash command listings
     for guild in bot.guilds:
         try:
-            bot.tree.copy_global_to(guild=guild)
-            synced_g = await bot.tree.sync(guild=guild)
-            print(f"⚡ Instantly synced {len(synced_g)} slash commands to guild: {guild.name} ({guild.id})")
-        except Exception as e:
-            print(f"Guild sync notice for {guild.name}: {e}")
+            bot.tree.clear_commands(guild=guild)
+            await bot.tree.sync(guild=guild)
+        except Exception:
+            pass
             
+    # 2. Sync global slash commands cleanly (single global registration)
     try:
         synced = await bot.tree.sync()
-        print(f"✅ Synced {len(synced)} global slash commands.")
+        print(f"✅ Cleanly synced {len(synced)} global slash commands (duplicates removed).")
     except Exception as e:
         print(f"Global sync error: {e}")
 
@@ -954,15 +954,6 @@ async def on_ready():
     if not auto_refresh_panels.is_running():
         auto_refresh_panels.start()
 
-@bot.event
-async def on_guild_join(guild):
-    """When invited to a new server, sync slash commands immediately to that guild."""
-    try:
-        bot.tree.copy_global_to(guild=guild)
-        await bot.tree.sync(guild=guild)
-        print(f"⚡ Instantly synced slash commands to newly joined guild: {guild.name}")
-    except Exception as e:
-        print(f"Error syncing on guild join: {e}")
 
 @tasks.loop(seconds=5)
 async def auto_refresh_panels():
