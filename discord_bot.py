@@ -445,17 +445,12 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
 
     if stats["running"] or is_socket_open:
         if is_socket_open and server_ping_ms > 0:
-            if server_ping_ms < 60:
-                ping_quality = "🟢 Excellent"
-            elif server_ping_ms < 120:
-                ping_quality = "🟡 Good"
-            else:
-                ping_quality = "🟠 Moderate"
-            ping_val = f"{server_ping_ms} ms ({ping_quality})"
+            ping_val = f"{server_ping_ms} ms"
         else:
             ping_val = "Starting..."
     else:
         ping_val = "Offline"
+
 
     embed.add_field(
         name="🧠 **MEMORY (RAM)**",
