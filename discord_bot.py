@@ -887,7 +887,7 @@ class MoreOptionsView(discord.ui.View):
         embed.set_footer(text="⚡ Valqore Live Console • Click Refresh to fetch latest lines", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
         await interaction.response.edit_message(embed=embed, view=LiveConsoleView())
 
-    @discord.ui.button(label="Player Controls", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="mc_btn_opt_players")
+    @discord.ui.button(label="Players", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="mc_btn_opt_players")
     async def btn_opt_players(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
