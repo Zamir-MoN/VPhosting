@@ -1112,23 +1112,15 @@ async def execute_setup_verification(guild, user, channel, role, code: str):
 @bot.tree.command(name="setupmc", description="Authenticate & pair this Discord server with the Valqore Web Panel.")
 @app_commands.describe(
     channel="The only text channel where Minecraft bot commands & panels are allowed",
-    role="The staff/operator role allowed to use bot commands",
-    code="Optional: The 6-digit pairing code (If left blank, a popup window will ask you for it)"
+    role="The staff/operator role allowed to use bot commands"
 )
-async def cmd_setupmc(interaction: discord.Interaction, channel: discord.TextChannel, role: discord.Role, code: Optional[str] = None):
+async def cmd_setupmc(interaction: discord.Interaction, channel: discord.TextChannel, role: discord.Role):
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         return await interaction.response.send_message("❌ Only Server Administrators or the Server Owner can pair this Discord server.", ephemeral=True)
     
-    # If code is not provided in command line, pop up an interactive modal asking for it!
-    if not code:
-        return await interaction.response.send_modal(SetupCodeModal(channel=channel, role=role))
+    # Immediately pop up the clean interactive modal to enter the 6-digit code!
+    await interaction.response.send_modal(SetupCodeModal(channel=channel, role=role))
 
-    await interaction.response.defer(ephemeral=True)
-    success, result = await execute_setup_verification(interaction.guild, interaction.user, channel, role, code)
-    if success:
-        await interaction.followup.send(embed=result, ephemeral=True)
-    else:
-        await interaction.followup.send(result, ephemeral=True)
 
 @bot.command(name="setupmc")
 async def p_setupmc(ctx, channel: discord.TextChannel = None, role: discord.Role = None, code: str = None):
