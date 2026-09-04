@@ -122,10 +122,7 @@ def get_whitelist_data():
 
 def set_whitelist_state(enable: bool):
     """Enables or disables the whitelist live via console and updates server.properties."""
-    cmd = "whitelist on" if enable else "whitelist off"
-    send_console_command(cmd)
-    
-    # Persist in server.properties
+    # Persist in server.properties directly
     props_path = os.path.join(MC_DIR, "server.properties")
     if os.path.exists(props_path):
         try:
@@ -146,23 +143,77 @@ def set_whitelist_state(enable: bool):
         except:
             pass
 
+    cmd = "whitelist on" if enable else "whitelist off"
+    send_console_command(cmd)
+    send_console_command("whitelist reload")
+
 def add_whitelist_user(username: str):
-    """Adds a player to the whitelist via console and reload."""
+    """Adds a player to the whitelist directly in whitelist.json and via console command."""
     clean_user = username.strip()
-    if clean_user:
-        send_console_command(f"whitelist add {clean_user}")
-        send_console_command("whitelist reload")
-        return True
-    return False
+    if not clean_user:
+        return False
+
+    whitelist_json_path = os.path.join(MC_DIR, "whitelist.json")
+    try:
+        entries = []
+        if os.path.exists(whitelist_json_path):
+            with open(whitelist_json_path, "r", encoding="utf-8", errors="ignore") as f:
+                try:
+                    entries = json.load(f)
+                    if not isinstance(entries, list): entries = []
+                except: entries = []
+        
+        # Check if already present
+        exists = any(
+            (isinstance(e, dict) and e.get("name", "").lower() == clean_user.lower()) or
+            (isinstance(e, str) and e.lower() == clean_user.lower())
+            for e in entries
+        )
+        if not exists:
+            # Generate offline UUID hash or fetch if needed
+            import uuid
+            # Java offline player UUID formula: UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes("UTF-8"))
+            player_uuid = str(uuid.uuid3(uuid.NAMESPACE_DNS, f"OfflinePlayer:{clean_user}"))
+            entries.append({
+                "uuid": player_uuid,
+                "name": clean_user
+            })
+            with open(whitelist_json_path, "w", encoding="utf-8") as f:
+                json.dump(entries, f, indent=2)
+    except:
+        pass
+
+    send_console_command(f"whitelist add {clean_user}")
+    send_console_command("whitelist reload")
+    return True
 
 def remove_whitelist_user(username: str):
-    """Removes a player from the whitelist via console and reload."""
+    """Removes a player from the whitelist directly in whitelist.json and via console command."""
     clean_user = username.strip()
-    if clean_user:
-        send_console_command(f"whitelist remove {clean_user}")
-        send_console_command("whitelist reload")
-        return True
-    return False
+    if not clean_user:
+        return False
+
+    whitelist_json_path = os.path.join(MC_DIR, "whitelist.json")
+    try:
+        if os.path.exists(whitelist_json_path):
+            with open(whitelist_json_path, "r", encoding="utf-8", errors="ignore") as f:
+                entries = json.load(f)
+            if isinstance(entries, list):
+                entries = [
+                    e for e in entries
+                    if not (
+                        (isinstance(e, dict) and e.get("name", "").lower() == clean_user.lower()) or
+                        (isinstance(e, str) and e.lower() == clean_user.lower())
+                    )
+                ]
+                with open(whitelist_json_path, "w", encoding="utf-8") as f:
+                    json.dump(entries, f, indent=2)
+    except:
+        pass
+
+    send_console_command(f"whitelist remove {clean_user}")
+    send_console_command("whitelist reload")
+    return True
 
 
 # Load BOT_TOKEN from env or .env file
