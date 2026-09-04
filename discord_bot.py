@@ -121,23 +121,30 @@ def get_whitelist_data():
     }
 
 def set_whitelist_state(enable: bool):
-    """Enables or disables the whitelist live via console and updates server.properties."""
-    # Persist in server.properties directly
+    """Enables or disables the whitelist live via console and updates server.properties with enforce-whitelist=true."""
+    # Persist in server.properties directly (both white-list and enforce-whitelist)
     props_path = os.path.join(MC_DIR, "server.properties")
     if os.path.exists(props_path):
         try:
             with open(props_path, "r", encoding="utf-8", errors="ignore") as f:
                 lines = f.readlines()
             new_lines = []
-            found = False
+            has_wl = False
+            has_enforce = False
             for line in lines:
-                if line.strip().startswith("white-list="):
+                clean = line.strip()
+                if clean.startswith("white-list="):
                     new_lines.append(f"white-list={'true' if enable else 'false'}\n")
-                    found = True
+                    has_wl = True
+                elif clean.startswith("enforce-whitelist="):
+                    new_lines.append(f"enforce-whitelist={'true' if enable else 'false'}\n")
+                    has_enforce = True
                 else:
                     new_lines.append(line)
-            if not found:
+            if not has_wl:
                 new_lines.append(f"white-list={'true' if enable else 'false'}\n")
+            if not has_enforce:
+                new_lines.append(f"enforce-whitelist={'true' if enable else 'false'}\n")
             with open(props_path, "w", encoding="utf-8") as f:
                 f.writelines(new_lines)
         except:
