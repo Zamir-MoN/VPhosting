@@ -417,13 +417,24 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     if custom_status:
         status_text = custom_status
     else:
-        raw_status = stats.get("raw_status", "online" if stats["running"] else "offline")
-        if raw_status == "online":
+        # Direct port check for instantaneous ONLINE detection
+        import socket
+        port_open = False
+        try:
+            s_test = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s_test.settimeout(0.4)
+            port_open = (s_test.connect_ex(('127.0.0.1', 25565)) == 0)
+            s_test.close()
+        except: pass
+
+        raw_status = stats.get("raw_status", "offline")
+        if port_open or raw_status == "online":
             status_text = "🟢 **ONLINE (READY TO PLAY)**"
-        elif raw_status == "starting":
+        elif raw_status == "starting" or stats.get("running"):
             status_text = "🟡 **BOOTING (LOADING WORLD & PLUGINS...)** ⏳"
         else:
             status_text = "🔴 **OFFLINE**"
+
 
     # Header description block
 

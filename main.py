@@ -649,7 +649,19 @@ def get_server_detailed_state():
     if not is_server_running():
         return "offline"
 
-    # Check latest.log to see if Paper/Minecraft finished boot
+    # 1. If port 25565 is open and accepting TCP connections, the server is 100% ONLINE
+    import socket
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.5)
+        res = sock.connect_ex(('127.0.0.1', 25565))
+        sock.close()
+        if res == 0:
+            return "online"
+    except Exception:
+        pass
+
+    # 2. Check latest.log to see if Paper/Minecraft finished boot or is stopping
     log_path = os.path.join(MC_DIR, "logs", "latest.log")
     if os.path.exists(log_path):
         try:
@@ -663,19 +675,8 @@ def get_server_detailed_state():
         except:
             pass
 
-    # If port 25565 is listening via socket, it's ready
-    import socket
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(0.3)
-        res = sock.connect_ex(('127.0.0.1', 25565))
-        sock.close()
-        if res == 0:
-            return "online"
-    except:
-        pass
-
     return "starting"
+
 
 
 @app.post("/api/start")
