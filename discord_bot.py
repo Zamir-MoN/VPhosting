@@ -1021,24 +1021,50 @@ async def update_presence():
         except:
             pass
 
+        raw_status = stats.get("raw_status", "online" if stats["running"] else "offline")
         is_online = stats["running"] or socket_open
-        p_count = stats.get('players_count', 0)
+        players = stats.get('online_players', [])
+        p_count = len(players) if players else stats.get('players_count', 0)
         p_max = stats.get('max_players', 50)
 
         if is_online:
-            activity = discord.Activity(
-                type=discord.ActivityType.playing,
-                name=f"Minecraft ({p_count}/{p_max} Online) 🎮"
-            )
-            await bot.change_presence(status=discord.Status.online, activity=activity)
+            if raw_status == "starting":
+                activity = discord.Activity(
+                    type=discord.ActivityType.custom,
+                    name="custom",
+                    state="🟡 Booting Server... ⏳"
+                )
+                await bot.change_presence(status=discord.Status.idle, activity=activity)
+            elif p_count > 0:
+                # Show first player name or summary in rich profile
+                if len(players) == 1:
+                    player_text = f"🟢 Online: {players[0]} ({p_count}/{p_max})"
+                elif len(players) <= 3:
+                    player_text = f"🟢 Online: {', '.join(players)} ({p_count}/{p_max})"
+                else:
+                    player_text = f"🟢 {p_count}/{p_max} Players Online"
+                
+                activity = discord.Activity(
+                    type=discord.ActivityType.playing,
+                    name=player_text
+                )
+                await bot.change_presence(status=discord.Status.online, activity=activity)
+            else:
+                activity = discord.Activity(
+                    type=discord.ActivityType.playing,
+                    name=f"🟢 Server Online (0/{p_max} Players) 🎮"
+                )
+                await bot.change_presence(status=discord.Status.online, activity=activity)
         else:
             activity = discord.Activity(
-                type=discord.ActivityType.watching,
-                name="Server is Offline 🔴"
+                type=discord.ActivityType.custom,
+                name="custom",
+                state="🔴 Server Offline"
             )
-            await bot.change_presence(status=discord.Status.idle, activity=activity)
+            await bot.change_presence(status=discord.Status.dnd, activity=activity)
     except Exception as e:
         pass
+
 
 # ==========================================
 # /setupmc SETUP & PAIRING COMMAND (SLASH & PREFIX)
