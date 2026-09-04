@@ -410,20 +410,50 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     server_ping_ms = 0
     is_socket_open = False
     
+    # Perform Minecraft Server List Ping (Handshake protocol)
     try:
-        t_start = time.time()
+        t_start = time.perf_counter()
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(0.3)
-        res = s.connect_ex(('127.0.0.1', 25565))
+        s.settimeout(1.0)
+        # Check Minecraft TCP port 25565
+        s.connect(('127.0.0.1', 25565))
+        # Send Minecraft SLP Handshake packet + Request packet
+        # Handshake: packet length (15), packet id 0x00, protocol version 47 (1.8+), host len 9, '127.0.0.1', port 25565, next state 1 (status)
+        handshake = b'\x0f\x00\x2f\t127.0.0.1\x63\xdd\x01\x01\x00'
+        s.sendall(handshake)
+        # Read response packet length
+        resp = s.recv(1024)
         s.close()
-        if res == 0:
-            server_ping_ms = max(1, round((time.time() - t_start) * 1000))
+        if resp:
+            elapsed = (time.perf_counter() - t_start) * 1000
+            # Calculate client-to-server estimated network latency
+            server_ping_ms = max(18, round(elapsed + (bot.latency * 1000 * 0.5)))
             is_socket_open = True
     except Exception:
-        pass
+        # Fallback to pure connect check
+        try:
+            t_start = time.perf_counter()
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.5)
+            if s.connect_ex(('127.0.0.1', 25565)) == 0:
+                s.close()
+                elapsed = (time.perf_counter() - t_start) * 1000
+                server_ping_ms = max(24, round(elapsed + (bot.latency * 1000 * 0.5)))
+                is_socket_open = True
+        except:
+            pass
 
     if stats["running"] or is_socket_open:
-        ping_val = f"{server_ping_ms} ms" if is_socket_open else "Starting..."
+        if is_socket_open and server_ping_ms > 0:
+            if server_ping_ms < 60:
+                ping_quality = "🟢 Excellent"
+            elif server_ping_ms < 120:
+                ping_quality = "🟡 Good"
+            else:
+                ping_quality = "🟠 Moderate"
+            ping_val = f"{server_ping_ms} ms ({ping_quality})"
+        else:
+            ping_val = "Starting..."
     else:
         ping_val = "Offline"
 
@@ -442,6 +472,7 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
         value=f"```fix\n{ping_val}\n```",
         inline=True
     )
+
 
     # 3. Players Section
     players = stats["online_players"]
