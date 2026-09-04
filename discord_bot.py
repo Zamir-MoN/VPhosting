@@ -887,73 +887,6 @@ class MoreOptionsView(discord.ui.View):
         embed.set_footer(text="⚡ Valqore Live Console • Click Refresh to fetch latest lines", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
         await interaction.response.edit_message(embed=embed, view=LiveConsoleView())
 
-    @discord.ui.button(emoji="📥", style=discord.ButtonStyle.success, custom_id="mc_btn_opt_backup")
-    async def btn_backup(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not is_admin(interaction):
-            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
-        
-        # Defer immediately to allow time for zipping
-        await interaction.response.defer(ephemeral=True)
-
-        world_dirs = []
-        for name in ["world", "world_nether", "world_the_end"]:
-            p = os.path.join(MC_DIR, name)
-            if os.path.exists(p) and os.path.isdir(p):
-                world_dirs.append((name, p))
-
-        if not world_dirs:
-            return await interaction.followup.send("❌ No Minecraft world folders (`world`) found to backup.", ephemeral=True)
-
-        backups_dir = os.path.join(BASE_DIR, "backups")
-        os.makedirs(backups_dir, exist_ok=True)
-        timestamp = int(time.time())
-        zip_filename = f"world_backup_{timestamp}.zip"
-        zip_filepath = os.path.join(backups_dir, zip_filename)
-
-        import zipfile
-        try:
-            # Create zip archive of world directories
-            def create_archive():
-                with zipfile.ZipFile(zip_filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                    for folder_name, folder_path in world_dirs:
-                        for root, _, files in os.walk(folder_path):
-                            for file in files:
-                                full_file_path = os.path.join(root, file)
-                                rel_path = os.path.relpath(full_file_path, MC_DIR)
-                                zipf.write(full_file_path, rel_path)
-
-            await asyncio.to_thread(create_archive)
-
-            if not os.path.exists(zip_filepath):
-                return await interaction.followup.send("❌ Failed to create world backup archive.", ephemeral=True)
-
-            file_size_bytes = os.path.getsize(zip_filepath)
-            file_size_mb = round(file_size_bytes / (1024 * 1024), 2)
-
-            # Discord upload limit is ~25MB for standard bots
-            if file_size_bytes <= 24 * 1024 * 1024:
-                file = discord.File(zip_filepath, filename=zip_filename)
-                await interaction.followup.send(
-                    content=f"📦 **World Backup Ready!** ({file_size_mb} MB)\nClick the file below to download to your local device:",
-                    file=file,
-                    ephemeral=True
-                )
-            else:
-                # Provide direct panel download URL if file exceeds Discord upload limit
-                server_ip_str = get_public_ip().split(":")[0]
-                download_url = f"http://{server_ip_str}:8090/api/backup/manual"
-                await interaction.followup.send(
-                    content=(
-                        f"📦 **World Backup Created Successfully!** ({file_size_mb} MB)\n\n"
-                        f"⚠️ The backup exceeds Discord's direct file upload limit (25 MB).\n"
-                        f"🌐 **Direct Local Download Link:**\n<{download_url}>\n\n"
-                        f"*(Saved on VPS at: `backups/{zip_filename}`)*"
-                    ),
-                    ephemeral=True
-                )
-        except Exception as e:
-            await interaction.followup.send(f"❌ Backup failed with error: `{str(e)}`", ephemeral=True)
-
     @discord.ui.button(label="Player Controls", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="mc_btn_opt_players")
     async def btn_opt_players(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
@@ -1090,6 +1023,73 @@ class ServerControlView(discord.ui.View):
 
         try: await interaction.message.edit(embed=build_status_embed(), view=self)
         except: pass
+
+    @discord.ui.button(emoji="📥", style=discord.ButtonStyle.success, custom_id="mc_btn_backup")
+    async def btn_backup(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        
+        # Defer immediately to allow time for zipping
+        await interaction.response.defer(ephemeral=True)
+
+        world_dirs = []
+        for name in ["world", "world_nether", "world_the_end"]:
+            p = os.path.join(MC_DIR, name)
+            if os.path.exists(p) and os.path.isdir(p):
+                world_dirs.append((name, p))
+
+        if not world_dirs:
+            return await interaction.followup.send("❌ No Minecraft world folders (`world`) found to backup.", ephemeral=True)
+
+        backups_dir = os.path.join(BASE_DIR, "backups")
+        os.makedirs(backups_dir, exist_ok=True)
+        timestamp = int(time.time())
+        zip_filename = f"world_backup_{timestamp}.zip"
+        zip_filepath = os.path.join(backups_dir, zip_filename)
+
+        import zipfile
+        try:
+            # Create zip archive of world directories
+            def create_archive():
+                with zipfile.ZipFile(zip_filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for folder_name, folder_path in world_dirs:
+                        for root, _, files in os.walk(folder_path):
+                            for file in files:
+                                full_file_path = os.path.join(root, file)
+                                rel_path = os.path.relpath(full_file_path, MC_DIR)
+                                zipf.write(full_file_path, rel_path)
+
+            await asyncio.to_thread(create_archive)
+
+            if not os.path.exists(zip_filepath):
+                return await interaction.followup.send("❌ Failed to create world backup archive.", ephemeral=True)
+
+            file_size_bytes = os.path.getsize(zip_filepath)
+            file_size_mb = round(file_size_bytes / (1024 * 1024), 2)
+
+            # Discord upload limit is ~25MB for standard bots
+            if file_size_bytes <= 24 * 1024 * 1024:
+                file = discord.File(zip_filepath, filename=zip_filename)
+                await interaction.followup.send(
+                    content=f"📦 **World Backup Ready!** ({file_size_mb} MB)\nClick the file below to download to your local device:",
+                    file=file,
+                    ephemeral=True
+                )
+            else:
+                # Provide direct panel download URL if file exceeds Discord upload limit
+                server_ip_str = get_public_ip().split(":")[0]
+                download_url = f"http://{server_ip_str}:8090/api/backup/manual"
+                await interaction.followup.send(
+                    content=(
+                        f"📦 **World Backup Created Successfully!** ({file_size_mb} MB)\n\n"
+                        f"⚠️ The backup exceeds Discord's direct file upload limit (25 MB).\n"
+                        f"🌐 **Direct Local Download Link:**\n<{download_url}>\n\n"
+                        f"*(Saved on VPS at: `backups/{zip_filename}`)*"
+                    ),
+                    ephemeral=True
+                )
+        except Exception as e:
+            await interaction.followup.send(f"❌ Backup failed with error: `{str(e)}`", ephemeral=True)
 
     @discord.ui.button(label="More", style=discord.ButtonStyle.secondary, emoji="⚙️", custom_id="mc_btn_more_options")
     async def btn_more_options(self, interaction: discord.Interaction, button: discord.ui.Button):
