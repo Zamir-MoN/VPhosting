@@ -96,11 +96,40 @@ systemctl daemon-reload
 systemctl enable valqore
 systemctl restart valqore
 
-# 6. Configure Optional Discord Bot Service (valqore-bot.service)
+# 6. Discord Bot Setup (Interactive Token Prompt)
+echo -e "\n${CYAN}========================================================================${NC}"
+echo -e "${PURPLE}${BOLD}🤖 Discord Bot Configuration (Optional)${NC}"
+echo -e "${CYAN}========================================================================${NC}"
+
+BOT_TOKEN=""
+# Read from /dev/tty so interactive input works even when running via `curl ... | bash`
+if [ -t 0 ]; then
+    read -rp "👉 Enter your Discord Bot Token (Press Enter to skip): " BOT_TOKEN
+elif [ -e /dev/tty ]; then
+    read -rp "👉 Enter your Discord Bot Token (Press Enter to skip): " BOT_TOKEN < /dev/tty
+fi
+
+# Trim whitespace
+BOT_TOKEN="$(echo "$BOT_TOKEN" | xargs)"
+
+if [ -n "$BOT_TOKEN" ]; then
+    echo "DISCORD_BOT_TOKEN=\"$BOT_TOKEN\"" > "$INSTALL_DIR/.env"
+    chown "$CURRENT_USER:$CURRENT_USER" "$INSTALL_DIR/.env"
+    chmod 600 "$INSTALL_DIR/.env"
+    echo -e "${GREEN}✅ Bot token saved to $INSTALL_DIR/.env${NC}"
+else
+    if [ ! -f "$INSTALL_DIR/.env" ]; then
+        echo 'DISCORD_BOT_TOKEN=""' > "$INSTALL_DIR/.env"
+        chown "$CURRENT_USER:$CURRENT_USER" "$INSTALL_DIR/.env"
+    fi
+    echo -e "${YELLOW}⏩ No token entered. You can set it later in $INSTALL_DIR/.env${NC}"
+fi
+
+# Configure Discord Bot Service (valqore-bot.service)
 cat <<EOF > /etc/systemd/system/valqore-bot.service
 [Unit]
 Description=Valqore Hosting Discord Bot Service
-After=network.target
+After=network.target valqore.service
 
 [Service]
 User=$CURRENT_USER
@@ -109,7 +138,7 @@ ExecStart=$INSTALL_DIR/venv/bin/python discord_bot.py
 Restart=always
 RestartSec=5
 Environment=PATH=/usr/bin:/bin:/usr/local/bin:$INSTALL_DIR/venv/bin
-EnvironmentFile=-$INSTALL_DIR/.env
+EnvironmentFile=$INSTALL_DIR/.env
 
 [Install]
 WantedBy=multi-user.target
@@ -117,8 +146,14 @@ EOF
 
 systemctl daemon-reload
 
+if [ -n "$BOT_TOKEN" ]; then
+    systemctl enable valqore-bot
+    systemctl restart valqore-bot
+    echo -e "${GREEN}✅ Discord Bot (valqore-bot.service) is now running 24/7!${NC}"
+fi
+
 # 7. Configure Firewall Ports
-echo -e "${YELLOW}⚡ [5/5] Configuring firewall rules for web panel and Minecraft...${NC}"
+echo -e "\n${YELLOW}⚡ [5/5] Configuring firewall rules for web panel and Minecraft...${NC}"
 ufw allow OpenSSH >/dev/null 2>&1 || true
 ufw allow 8090/tcp >/dev/null 2>&1 || true
 ufw allow 25565/tcp >/dev/null 2>&1 || true
@@ -134,10 +169,18 @@ echo -e "🌐 ${BOLD}Open your Web Dashboard in your browser:${NC}"
 echo -e "   👉 ${CYAN}${BOLD}http://${PUBLIC_IP}:8090${NC}\n"
 echo -e "🎮 ${BOLD}Minecraft Game Server Connection Address:${NC}"
 echo -e "   👉 ${YELLOW}${BOLD}${PUBLIC_IP}:25565${NC}\n"
-echo -e "🤖 ${BOLD}To Activate the Discord Bot (24/7 Service):${NC}"
-echo -e "   1. Set your Bot Token:  ${CYAN}echo 'DISCORD_BOT_TOKEN=\"your_token_here\"' > $INSTALL_DIR/.env${NC}"
-echo -e "   2. Start Bot Service:   ${CYAN}sudo systemctl enable --now valqore-bot${NC}"
-echo -e "   3. View Bot Logs:       ${CYAN}sudo journalctl -u valqore-bot -f${NC}\n"
+
+if [ -n "$BOT_TOKEN" ]; then
+    echo -e "🤖 ${BOLD}Discord Bot Status: ${GREEN}ONLINE & RUNNING 24/7${NC}"
+    echo -e "   • In Discord, type ${CYAN}/panel${NC} in any authorized channel to summon the control panel!"
+    echo -e "   • Bot Logs: ${CYAN}sudo journalctl -u valqore-bot -f${NC}\n"
+else
+    echo -e "🤖 ${BOLD}To Activate the Discord Bot Later:${NC}"
+    echo -e "   1. Set your Bot Token:  ${CYAN}echo 'DISCORD_BOT_TOKEN=\"your_token_here\"' > $INSTALL_DIR/.env${NC}"
+    echo -e "   2. Start Bot Service:   ${CYAN}sudo systemctl enable --now valqore-bot${NC}"
+    echo -e "   3. View Bot Logs:       ${CYAN}sudo journalctl -u valqore-bot -f${NC}\n"
+fi
+
 echo -e "⚙️ ${BOLD}Panel Management Commands:${NC}"
 echo -e "   • Check Status:    ${CYAN}sudo systemctl status valqore${NC}"
 echo -e "   • Restart Panel:   ${CYAN}sudo systemctl restart valqore${NC}"
