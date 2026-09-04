@@ -24,27 +24,32 @@ LOG_PATH = os.path.join(MC_DIR, "logs", "latest.log")
 ENV_FILE = os.path.join(BASE_DIR, ".env")
 PANEL_API_URL = "http://127.0.0.1:8090/api"
 
-# Default Server IP / Domain (Auto-detected or configurable via .env)
-SERVER_IP = os.getenv("SERVER_IP", "valqore-arcane-smp.indevs.in")
+def get_public_ip():
+    """Fetches the real public VPS IP address with domain fallback."""
+    # 1. If explicit custom domain/IP is in .env or environment
+    custom_ip = os.getenv("SERVER_IP")
+    if custom_ip:
+        return custom_ip
 
-
-# ==========================================
-# CONFIGURATION
-# ==========================================
-BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-if not BOT_TOKEN and os.path.exists(ENV_FILE):
+    # 2. Try fetching the actual public IPv4 address of the VPS
     try:
-        with open(ENV_FILE, "r", encoding="utf-8") as ef:
-            for line in ef:
-                line = line.strip()
-                if line.startswith("DISCORD_BOT_TOKEN="):
-                    BOT_TOKEN = line.split("=", 1)[1].strip().strip('"').strip("'")
-                    break
+        with urllib.request.urlopen("https://api.ipify.org", timeout=2) as r:
+            ip = r.read().decode('utf-8').strip()
+            if ip:
+                return f"{ip}:25565"
     except Exception:
         pass
 
-if not BOT_TOKEN:
-    BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
+    try:
+        with urllib.request.urlopen("https://ifconfig.me/ip", timeout=2) as r:
+            ip = r.read().decode('utf-8').strip()
+            if ip:
+                return f"{ip}:25565"
+    except Exception:
+        pass
+
+    return "valqore-arcane-smp.indevs.in"
+
 
 ADMIN_USER_IDS = []
 
@@ -278,7 +283,9 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
         timestamp=discord.utils.utcnow()
     )
 
-    embed.add_field(name="🌐 Direct Join IP", value=f"`{SERVER_IP}`", inline=False)
+    server_ip = get_public_ip()
+    embed.add_field(name="🌐 Direct Join IP", value=f"`{server_ip}`", inline=False)
+
     embed.add_field(name="🧠 RAM Usage", value=f"`{stats['ram_used_mb']} MB` / `{stats['ram_allocated_mb']} MB` ({stats['ram_percent']}%)", inline=True)
     embed.add_field(name="⚙️ CPU Load", value=f"`{stats['cpu_percent']}%`", inline=True)
     embed.add_field(name="💾 Disk Usage", value=f"`{stats['disk_percent']}%`", inline=True)
