@@ -344,13 +344,14 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     )
     
     # Minecraft Banner Image
-    embed.set_image(url="https://cdn.mos.cms.futurecdn.net/v6XoEzDajGRMWNeLY5NMSb.jpg")
+    embed.set_image(url="https://raw.githubusercontent.com/Zamir-MoN/VPhosting/main/static/banner.png")
     
     embed.set_footer(
         text="⚡ Live Sync Active • Auto-refreshes silently",
         icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png"
     )
     return embed
+
 
 
 
