@@ -926,6 +926,46 @@ class ServerControlView(discord.ui.View):
 # ==========================================
 # BOT EVENTS & SILENT AUTO REFRESH LOOP
 # ==========================================
+async def apply_presence():
+    """Immediately evaluates and sets bot status activity."""
+    try:
+        stats = get_stats_data()
+        import socket
+        socket_open = False
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.3)
+            socket_open = (s.connect_ex(('127.0.0.1', 25565)) == 0)
+            s.close()
+        except:
+            pass
+
+        raw_status = stats.get("raw_status", "online" if stats["running"] else "offline")
+        is_online = stats["running"] or socket_open
+        players = stats.get('online_players', [])
+        p_count = len(players) if players else stats.get('players_count', 0)
+        p_max = stats.get('max_players', 50)
+
+        if is_online:
+            if raw_status == "starting":
+                act = discord.Activity(type=discord.ActivityType.playing, name="Minecraft (Booting... ⏳)")
+                await bot.change_presence(status=discord.Status.idle, activity=act)
+            elif p_count > 0:
+                if len(players) <= 2:
+                    p_str = ", ".join(players)
+                    act = discord.Activity(type=discord.ActivityType.playing, name=f"Minecraft ({p_count}/{p_max} Online: {p_str})")
+                else:
+                    act = discord.Activity(type=discord.ActivityType.playing, name=f"Minecraft ({p_count}/{p_max} Players Online)")
+                await bot.change_presence(status=discord.Status.online, activity=act)
+            else:
+                act = discord.Activity(type=discord.ActivityType.playing, name=f"Minecraft ({p_count}/{p_max} Online)")
+                await bot.change_presence(status=discord.Status.online, activity=act)
+        else:
+            act = discord.Activity(type=discord.ActivityType.playing, name="Minecraft (Server Offline 🔴)")
+            await bot.change_presence(status=discord.Status.dnd, activity=act)
+    except Exception as e:
+        print(f"Presence error: {e}")
+
 @bot.event
 async def on_ready():
     print(f"🤖 Bot Logged in as {bot.user.name} ({bot.user.id})")
@@ -945,6 +985,9 @@ async def on_ready():
     except Exception as e:
         print(f"Global sync error: {e}")
 
+    # Set initial presence immediately
+    await apply_presence()
+
     bot.add_view(ServerControlView())
     bot.add_view(MoreOptionsView())
     bot.add_view(LiveConsoleView())
@@ -953,8 +996,6 @@ async def on_ready():
         update_presence.start()
     if not auto_refresh_panels.is_running():
         auto_refresh_panels.start()
-
-
 
 @tasks.loop(seconds=5)
 async def auto_refresh_panels():
@@ -989,10 +1030,8 @@ async def auto_refresh_panels():
                     c_embed.set_footer(text="⚡ Valqore Live Console • Live Updating", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
                     await msg.edit(embed=c_embed)
                 elif mode in ["options", "players"]:
-                    # Keep menus and player selection interactive
                     pass
                 else:
-                    # Main panel mode
                     m_embed = build_status_embed()
                     await msg.edit(embed=m_embed)
             except discord.NotFound:
@@ -1007,45 +1046,9 @@ async def auto_refresh_panels():
 
 @tasks.loop(seconds=5)
 async def update_presence():
-    try:
-        stats = get_stats_data()
-        
-        # Check socket 25565 directly for 100% reliable online detection
-        import socket
-        socket_open = False
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(0.3)
-            socket_open = (s.connect_ex(('127.0.0.1', 25565)) == 0)
-            s.close()
-        except:
-            pass
+    await apply_presence()
 
-        raw_status = stats.get("raw_status", "online" if stats["running"] else "offline")
-        is_online = stats["running"] or socket_open
-        players = stats.get('online_players', [])
-        p_count = len(players) if players else stats.get('players_count', 0)
-        p_max = stats.get('max_players', 50)
 
-        if is_online:
-            if raw_status == "starting":
-                activity = discord.Game(name="Minecraft (Booting... ⏳)")
-                await bot.change_presence(status=discord.Status.idle, activity=activity)
-            elif p_count > 0:
-                if len(players) <= 2:
-                    p_str = ", ".join(players)
-                    activity = discord.Game(name=f"Minecraft ({p_count}/{p_max} Online: {p_str})")
-                else:
-                    activity = discord.Game(name=f"Minecraft ({p_count}/{p_max} Players Online)")
-                await bot.change_presence(status=discord.Status.online, activity=activity)
-            else:
-                activity = discord.Game(name=f"Minecraft (0/{p_max} Online)")
-                await bot.change_presence(status=discord.Status.online, activity=activity)
-        else:
-            activity = discord.Game(name="Server Offline 🔴")
-            await bot.change_presence(status=discord.Status.dnd, activity=activity)
-    except Exception as e:
-        print(f"Presence update error: {e}")
 
 
 
