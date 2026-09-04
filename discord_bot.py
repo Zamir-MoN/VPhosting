@@ -1091,7 +1091,7 @@ class ServerControlView(discord.ui.View):
         try: await interaction.message.edit(embed=build_status_embed(), view=self)
         except: pass
 
-    @discord.ui.button(label="More Options", style=discord.ButtonStyle.secondary, emoji="⚙️", custom_id="mc_btn_more_options")
+    @discord.ui.button(label="More", style=discord.ButtonStyle.secondary, emoji="⚙️", custom_id="mc_btn_more_options")
     async def btn_more_options(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ You do not have permission to manage this server.", ephemeral=True)
