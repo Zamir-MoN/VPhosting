@@ -613,11 +613,12 @@ class LiveConsoleView(discord.ui.View):
 # PLAYER MANAGER & ACTION VIEWS
 # ==========================================
 class PlayerActionsView(discord.ui.View):
-    def __init__(self, player_name: str, is_online: bool = True, is_op: bool = False, current_gamemode: str = "survival"):
+    def __init__(self, player_name: str, is_online: bool = True, is_op: bool = False, is_banned: bool = False, current_gamemode: str = "survival"):
         super().__init__(timeout=None)
         self.player_name = player_name
         self.is_online = is_online
         self.is_op = is_op
+        self.is_banned = is_banned
         self.current_gamemode = (current_gamemode or "survival").lower()
         self.setup_buttons()
 
@@ -650,21 +651,31 @@ class PlayerActionsView(discord.ui.View):
             btn_op.callback = self.cb_op
             self.add_item(btn_op)
 
-        # Kick button (Only functional if online)
-        kick_style = discord.ButtonStyle.danger if self.is_online else discord.ButtonStyle.secondary
-        kick_label = "Kick Player" if self.is_online else "Offline (Cannot Kick)"
-        btn_kick = discord.ui.Button(label=kick_label, style=kick_style, emoji="👢", disabled=not self.is_online, row=1)
-        btn_kick.callback = self.cb_kick
-        self.add_item(btn_kick)
+        # Ban / Unban Toggle (Replaces Kick with permanent ban/unban controls)
+        if self.is_banned:
+            btn_unban = discord.ui.Button(label="Unban Player", style=discord.ButtonStyle.success, emoji="🔓", row=1)
+            btn_unban.callback = self.cb_unban
+            self.add_item(btn_unban)
+        else:
+            btn_ban = discord.ui.Button(label="Ban Player", style=discord.ButtonStyle.danger, emoji="🔨", row=1)
+            btn_ban.callback = self.cb_ban
+            self.add_item(btn_ban)
 
         # Row 2: Back button
-        btn_back = discord.ui.Button(label="Back to Player List", style=discord.ButtonStyle.danger, emoji="↩️", row=2)
+        btn_back = discord.ui.Button(label="Back to Player List", style=discord.ButtonStyle.secondary, emoji="↩️", row=2)
         btn_back.callback = self.cb_back
         self.add_item(btn_back)
 
     def build_embed(self) -> discord.Embed:
         avatar_url = f"https://mc-heads.net/avatar/{self.player_name}/100"
-        status_badge = "🟢 **ONLINE (IN-GAME)**" if self.is_online else "⚫ **OFFLINE**"
+        
+        if self.is_banned:
+            status_badge = "🔨 **BANNED FROM SERVER**"
+        elif self.is_online:
+            status_badge = "🟢 **ONLINE (IN-GAME)**"
+        else:
+            status_badge = "⚫ **OFFLINE**"
+
         op_badge = "👑 **OPERATOR (ADMIN)**" if self.is_op else "👤 **Standard Player**"
         mode_badge = f"🎮 **{self.current_gamemode.upper()}**"
 
@@ -676,11 +687,11 @@ class PlayerActionsView(discord.ui.View):
                 f"**Active Gamemode:** {mode_badge}\n\n"
                 f"*(Active states are highlighted with **Green & ✓ Checkmarks**)*"
             ),
-            color=discord.Color.from_rgb(230, 255, 0),
+            color=discord.Color.red() if self.is_banned else discord.Color.from_rgb(230, 255, 0),
             timestamp=discord.utils.utcnow()
         )
         embed.set_thumbnail(url=avatar_url)
-        embed.set_footer(text="⚡ Valqore Live Player Controls • Real-time Sync", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        embed.set_footer(text="⚡ Valqore Live Player Controls • Real-time Ban & Mode Sync", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
         return embed
 
     def make_gamemode_callback(self, mode_id, mode_label):
@@ -709,11 +720,20 @@ class PlayerActionsView(discord.ui.View):
         self.setup_buttons()
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
-    async def cb_kick(self, interaction: discord.Interaction):
+    async def cb_ban(self, interaction: discord.Interaction):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
-        send_console_command(f"kick {self.player_name} Kicked by Server Administrator")
+        send_console_command(f"ban {self.player_name} Banned by Server Administrator")
+        self.is_banned = True
         self.is_online = False
+        self.setup_buttons()
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    async def cb_unban(self, interaction: discord.Interaction):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        send_console_command(f"pardon {self.player_name}")
+        self.is_banned = False
         self.setup_buttons()
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
@@ -728,14 +748,21 @@ class PlayerActionsView(discord.ui.View):
 class PlayerSelectDropdown(discord.ui.Select):
     def __init__(self, players_list):
         options = []
-        # Show online players first, then offline players
         for p in players_list[:25]:
             p_name = p.get("name", "Unknown")
             is_online = (p.get("status") == "online")
             is_op = p.get("is_op", False)
+            is_banned = p.get("is_banned", False)
             
-            emoji = "🟢" if is_online else "⚫"
-            desc = f"{'ONLINE' if is_online else 'OFFLINE'}" + (" | OP Admin" if is_op else " | Player")
+            if is_banned:
+                emoji = "🔨"
+                desc = "BANNED"
+            elif is_online:
+                emoji = "🟢"
+                desc = "ONLINE" + (" | OP Admin" if is_op else " | Player")
+            else:
+                emoji = "⚫"
+                desc = "OFFLINE" + (" | OP Admin" if is_op else " | Player")
             
             options.append(discord.SelectOption(
                 label=p_name,
@@ -766,11 +793,13 @@ class PlayerSelectDropdown(discord.ui.Select):
         p_data = next((p for p in all_players if p.get("name") == selected_name), None)
         is_online = p_data.get("status") == "online" if p_data else False
         is_op = p_data.get("is_op", False) if p_data else False
+        is_banned = p_data.get("is_banned", False) if p_data else False
         current_gamemode = p_data.get("gamemode", "survival") if p_data else "survival"
         
-        view = PlayerActionsView(selected_name, is_online, is_op, current_gamemode)
+        view = PlayerActionsView(selected_name, is_online, is_op, is_banned, current_gamemode)
         embed = view.build_embed()
         await interaction.response.edit_message(embed=embed, view=view)
+
 
 
 class PlayerManagerView(discord.ui.View):
