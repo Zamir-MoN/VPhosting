@@ -345,9 +345,10 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     )
     embed.add_field(
         name="📶 **SERVER PING**",
-        value=f"```fix\n{server_ping_ms} ms\n```\n`{ping_status}`",
+        value=f"```fix\n{server_ping_ms} ms\n```",
         inline=True
     )
+
 
 
     # 3. Players Section
