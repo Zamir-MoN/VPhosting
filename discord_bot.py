@@ -167,7 +167,24 @@ def get_stats_data():
     if api_stats and isinstance(api_stats, dict):
         status_val = api_stats.get("status", "offline")
         is_running = (status_val in ["online", "starting"])
-        online_p = [p["name"] for p in api_stats.get("online_players", []) if isinstance(p, dict)]
+        online_p_raw = api_stats.get("online_players", [])
+        all_p_raw = api_stats.get("all_players", [])
+        
+        online_p = [p["name"] if isinstance(p, dict) else str(p) for p in online_p_raw]
+        
+        # Build comprehensive players list (online + offline)
+        players_map = {}
+        for p in all_p_raw:
+            if isinstance(p, dict) and "name" in p:
+                players_map[p["name"]] = p
+            elif isinstance(p, str):
+                players_map[p] = {"name": p, "status": "offline", "is_op": False}
+        for p in online_p_raw:
+            if isinstance(p, dict) and "name" in p:
+                players_map[p["name"]] = p
+            elif isinstance(p, str):
+                players_map[p] = {"name": p, "status": "online", "is_op": False}
+
         return {
             "running": is_running,
             "raw_status": status_val,
@@ -177,6 +194,7 @@ def get_stats_data():
             "cpu_percent": api_stats.get("cpu_percent", 0),
             "disk_percent": api_stats.get("disk_percent", 0),
             "online_players": online_p,
+            "all_players_details": list(players_map.values()),
             "players_count": len(online_p),
             "max_players": api_stats.get("max_players", 50)
         }
@@ -204,6 +222,27 @@ def get_stats_data():
                 ram_percent = min(100, int((ram_used_mb / max(1, allocated_ram_mb)) * 100))
         except: pass
 
+    # Read usercache.json and ops.json for fallback player list
+    fallback_players = []
+    try:
+        usercache_file = os.path.join(MC_DIR, "usercache.json")
+        ops_file = os.path.join(MC_DIR, "ops.json")
+        ops_set = set()
+        if os.path.exists(ops_file):
+            with open(ops_file, "r") as of:
+                for o in json.load(of):
+                    if isinstance(o, dict) and "name" in o: ops_set.add(o["name"].lower())
+        if os.path.exists(usercache_file):
+            with open(usercache_file, "r") as uf:
+                for u in json.load(uf):
+                    if isinstance(u, dict) and "name" in u:
+                        fallback_players.append({
+                            "name": u["name"],
+                            "status": "offline",
+                            "is_op": u["name"].lower() in ops_set
+                        })
+    except: pass
+
     return {
         "running": running,
         "ram_percent": ram_percent,
@@ -212,6 +251,7 @@ def get_stats_data():
         "cpu_percent": int(cpu_percent),
         "disk_percent": disk_percent,
         "online_players": [],
+        "all_players_details": fallback_players,
         "players_count": 0,
         "max_players": 50
     }
@@ -455,6 +495,168 @@ class LiveConsoleView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=MoreOptionsView())
 
 
+# ==========================================
+# PLAYER MANAGER & ACTION VIEWS
+# ==========================================
+class PlayerActionsView(discord.ui.View):
+    def __init__(self, player_name: str, is_online: bool = True, is_op: bool = False):
+        super().__init__(timeout=None)
+        self.player_name = player_name
+        self.is_online = is_online
+        self.is_op = is_op
+
+    @discord.ui.button(label="Survival", style=discord.ButtonStyle.secondary, emoji="⚔️", row=0)
+    async def btn_gamemode_survival(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        send_console_command(f"gamemode survival {self.player_name}")
+        await interaction.response.send_message(f"⚔️ Changed **{self.player_name}** gamemode to **Survival**.", ephemeral=True)
+
+    @discord.ui.button(label="Creative", style=discord.ButtonStyle.secondary, emoji="🧱", row=0)
+    async def btn_gamemode_creative(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        send_console_command(f"gamemode creative {self.player_name}")
+        await interaction.response.send_message(f"🧱 Changed **{self.player_name}** gamemode to **Creative**.", ephemeral=True)
+
+    @discord.ui.button(label="Spectator", style=discord.ButtonStyle.secondary, emoji="👁️", row=0)
+    async def btn_gamemode_spectator(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        send_console_command(f"gamemode spectator {self.player_name}")
+        await interaction.response.send_message(f"👁️ Changed **{self.player_name}** gamemode to **Spectator**.", ephemeral=True)
+
+    @discord.ui.button(label="OP Player", style=discord.ButtonStyle.success, emoji="👑", row=1)
+    async def btn_op(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        send_console_command(f"op {self.player_name}")
+        await interaction.response.send_message(f"👑 Promoted **{self.player_name}** to Server Operator (OP)!", ephemeral=True)
+
+    @discord.ui.button(label="DE-OP", style=discord.ButtonStyle.danger, emoji="⛔", row=1)
+    async def btn_deop(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        send_console_command(f"deop {self.player_name}")
+        await interaction.response.send_message(f"⛔ Removed Operator permissions from **{self.player_name}**.", ephemeral=True)
+
+    @discord.ui.button(label="Kick", style=discord.ButtonStyle.danger, emoji="👢", row=1)
+    async def btn_kick(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        send_console_command(f"kick {self.player_name} Kicked by Server Administrator")
+        await interaction.response.send_message(f"👢 Kicked **{self.player_name}** from the server.", ephemeral=True)
+
+    @discord.ui.button(label="Back to Player List", style=discord.ButtonStyle.danger, emoji="↩️", row=2)
+    async def btn_back_players(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.message and interaction.message.id in active_panel_messages:
+            active_panel_messages[interaction.message.id]["mode"] = "players"
+        view = PlayerManagerView()
+        embed = view.build_player_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class PlayerSelectDropdown(discord.ui.Select):
+    def __init__(self, players_list):
+        options = []
+        # Show online players first, then offline players
+        for p in players_list[:25]:
+            p_name = p.get("name", "Unknown")
+            is_online = (p.get("status") == "online")
+            is_op = p.get("is_op", False)
+            
+            emoji = "🟢" if is_online else "⚫"
+            desc = f"Status: {'ONLINE' if is_online else 'OFFLINE'}" + (" • [OP]" if is_op else "")
+            
+            options.append(discord.SelectOption(
+                label=p_name,
+                description=desc,
+                emoji=emoji,
+                value=p_name
+            ))
+            
+        if not options:
+            options.append(discord.SelectOption(
+                label="No players registered yet",
+                description="Join the server to appear here",
+                value="none"
+            ))
+
+        super().__init__(placeholder="👉 Select a player to manage...", min_values=1, max_values=1, options=options, row=0)
+
+    async def callback(self, interaction: discord.Interaction):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        
+        selected_name = self.values[0]
+        if selected_name == "none":
+            return await interaction.response.send_message("ℹ️ No player selected.", ephemeral=True)
+        
+        stats = get_stats_data()
+        all_players = stats.get("all_players_details", [])
+        p_data = next((p for p in all_players if p.get("name") == selected_name), None)
+        is_online = p_data.get("status") == "online" if p_data else False
+        is_op = p_data.get("is_op", False) if p_data else False
+        
+        # Player Avatar Image
+        avatar_url = f"https://mc-heads.net/avatar/{selected_name}/100"
+        
+        embed = discord.Embed(
+            title=f"👤 PLAYER CONTROL: {selected_name}",
+            description=f"**Status:** {'🟢 **Online**' if is_online else '⚫ **Offline**'}\n**Operator (OP):** {'👑 Yes' if is_op else 'No'}\n\n*Choose an action below to execute in real-time on Minecraft:*",
+            color=discord.Color.from_rgb(230, 255, 0),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.set_thumbnail(url=avatar_url)
+        embed.set_footer(text="⚡ Valqore Player Controls", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        
+        await interaction.response.edit_message(embed=embed, view=PlayerActionsView(selected_name, is_online, is_op))
+
+
+class PlayerManagerView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        stats = get_stats_data()
+        all_players = stats.get("all_players_details", [])
+        self.add_item(PlayerSelectDropdown(all_players))
+
+    def build_player_embed(self) -> discord.Embed:
+        stats = get_stats_data()
+        all_players = stats.get("all_players_details", [])
+        online_players = [p for p in all_players if p.get("status") == "online"]
+        offline_players = [p for p in all_players if p.get("status") != "online"]
+
+        online_txt = " ".join([f"`{p.get('name')}`" for p in online_players]) if online_players else "*No players currently online.*"
+        offline_txt = " ".join([f"`{p.get('name')}`" for p in offline_players[:15]]) if offline_players else "*No registered player history.*"
+
+        embed = discord.Embed(
+            title=f"👥 PLAYER ROSTER ({len(online_players)}/{stats['max_players']} Online)",
+            description="Select any player from the dropdown below to change **Gamemode (Survival/Creative/Spectator)**, **OP / DE-OP**, or **Kick** them live.",
+            color=discord.Color.from_rgb(230, 255, 0),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.add_field(name="🟢 **ONLINE PLAYERS**", value=f"> {online_txt}\n\u200b", inline=False)
+        embed.add_field(name="⚫ **OFFLINE / RECENT PLAYERS**", value=f"> {offline_txt}\n\u200b", inline=False)
+        embed.set_footer(text="⚡ Valqore Player Manager • Select player below or click Back", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        return embed
+
+    @discord.ui.button(label="Refresh Roster", style=discord.ButtonStyle.primary, emoji="🔄", row=1)
+    async def btn_refresh_roster(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        new_view = PlayerManagerView()
+        embed = new_view.build_player_embed()
+        await interaction.response.edit_message(embed=embed, view=new_view)
+
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.danger, emoji="↩️", row=1)
+    async def btn_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.message and interaction.message.id in active_panel_messages:
+            active_panel_messages[interaction.message.id]["mode"] = "options"
+        embed = build_status_embed()
+        embed.set_footer(text="⚙️ More Options Menu • Select an action below or click Back", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        await interaction.response.edit_message(embed=embed, view=MoreOptionsView())
+
+
 class MoreOptionsView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -475,22 +677,15 @@ class MoreOptionsView(discord.ui.View):
         embed.set_footer(text="⚡ Valqore Live Console • Click Refresh to fetch latest lines", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
         await interaction.response.edit_message(embed=embed, view=LiveConsoleView())
 
-    @discord.ui.button(label="Player List", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="mc_btn_opt_players")
+    @discord.ui.button(label="Player Controls", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="mc_btn_opt_players")
     async def btn_opt_players(self, interaction: discord.Interaction, button: discord.ui.Button):
-        stats = get_stats_data()
-        players = stats.get("online_players", [])
-        if not stats["running"]:
-            return await interaction.response.send_message("🔴 Server is currently offline.", ephemeral=True)
-        
-        embed = discord.Embed(
-            title=f"👥 Online Players ({len(players)}/{stats['max_players']})",
-            color=discord.Color.green()
-        )
-        if players:
-            embed.description = "\n".join([f"• `{p}`" for p in players])
-        else:
-            embed.description = "*No players currently online on the server.*"
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        if interaction.message and interaction.message.id in active_panel_messages:
+            active_panel_messages[interaction.message.id]["mode"] = "players"
+        view = PlayerManagerView()
+        embed = view.build_player_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
 
     @discord.ui.button(label="Back", style=discord.ButtonStyle.danger, emoji="↩️", custom_id="mc_btn_opt_back")
     async def btn_opt_back(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -651,6 +846,7 @@ async def on_ready():
     bot.add_view(ServerControlView())
     bot.add_view(MoreOptionsView())
     bot.add_view(LiveConsoleView())
+    bot.add_view(PlayerManagerView())
     if not update_presence.is_running():
         update_presence.start()
     if not auto_refresh_panels.is_running():
@@ -688,8 +884,8 @@ async def auto_refresh_panels():
                     )
                     c_embed.set_footer(text="⚡ Valqore Live Console • Live Updating", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
                     await msg.edit(embed=c_embed)
-                elif mode == "options":
-                    # Keep options view static without flipping back to main
+                elif mode in ["options", "players"]:
+                    # Keep menus and player selection interactive
                     pass
                 else:
                     # Main panel mode
