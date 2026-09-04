@@ -393,9 +393,13 @@ def get_latest_logs(lines_count=20) -> str:
 def is_admin(interaction_or_ctx):
     user = interaction_or_ctx.user if hasattr(interaction_or_ctx, "user") else interaction_or_ctx.author
     if ADMIN_USER_IDS and user.id in ADMIN_USER_IDS:
+        return True
+    if hasattr(user, "guild_permissions") and user.guild_permissions.administrator:
+        return True
     if not ADMIN_USER_IDS and not hasattr(user, "guild_permissions"):
         return True
     return False
+
 
 def build_status_embed(custom_status: str = None, custom_color: discord.Color = None, progress_bar: str = None) -> discord.Embed:
     stats = get_stats_data()
