@@ -266,8 +266,14 @@ def is_admin(interaction_or_ctx):
         return True
     return False
 
+def make_mini_bar(percent: int, length: int = 8) -> str:
+    """Creates a sleek visual monospace bar for RAM, CPU, Disk."""
+    filled = max(0, min(length, round((percent / 100) * length)))
+    return f"`[{'█' * filled}{'░' * (length - filled)}]`"
+
 def build_status_embed(custom_status: str = None, custom_color: discord.Color = None, progress_bar: str = None) -> discord.Embed:
     stats = get_stats_data()
+    server_ip = get_public_ip()
     
     if custom_status:
         status_text = custom_status
@@ -275,43 +281,77 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     else:
         raw_status = stats.get("raw_status", "online" if stats["running"] else "offline")
         if raw_status == "online":
-            status_text = "🟢 **Online (Ready to Join)**"
-            color = discord.Color.green()
+            status_text = "🟢 **ONLINE (READY TO PLAY)**"
+            color = discord.Color.from_rgb(0, 255, 127) # Vibrant Emerald Green
         elif raw_status == "starting":
-            status_text = "🟡 **Starting (Loading World & Plugins...)** ⏳"
-            color = discord.Color.gold()
+            status_text = "🟡 **BOOTING (LOADING WORLD & PLUGINS...)** ⏳"
+            color = discord.Color.from_rgb(255, 204, 0) # Gold
         else:
-            status_text = "🔴 **Offline**"
-            color = discord.Color.red()
+            status_text = "🔴 **OFFLINE**"
+            color = discord.Color.from_rgb(255, 59, 48) # Sleek Red
 
-
-    desc = f"**Server Status:** {status_text}"
+    # Header description block
+    desc = f"**SERVER STATUS**\n> {status_text}\n"
     if progress_bar:
-        desc += f"\n{progress_bar}"
-    desc += "\n*(Live real-time sync active)*"
+        desc += f"\n> {progress_bar}\n"
 
     embed = discord.Embed(
-        title="⚡ Valqore Minecraft Control Center",
+        title="⚡ VALQORE MINECRAFT ENGINE",
         description=desc,
         color=color,
         timestamp=discord.utils.utcnow()
     )
 
-    server_ip = get_public_ip()
-    embed.add_field(name="🌐 Direct Join IP", value=f"`{server_ip}`", inline=False)
+    # 1. Connection Section
+    embed.add_field(
+        name="📡 **CONNECTION ADDRESS**",
+        value=f"```fix\n{server_ip}\n```",
+        inline=False
+    )
 
-    embed.add_field(name="🧠 RAM Usage", value=f"`{stats['ram_used_mb']} MB` / `{stats['ram_allocated_mb']} MB` ({stats['ram_percent']}%)", inline=True)
-    embed.add_field(name="⚙️ CPU Load", value=f"`{stats['cpu_percent']}%`", inline=True)
-    embed.add_field(name="💾 Disk Usage", value=f"`{stats['disk_percent']}%`", inline=True)
+    # 2. Performance & Hardware Metrics
+    ram_bar = make_mini_bar(stats['ram_percent'])
+    cpu_bar = make_mini_bar(stats['cpu_percent'])
+    disk_bar = make_mini_bar(stats['disk_percent'])
 
-    player_list_str = ", ".join(stats["online_players"]) if stats["online_players"] else "*None*"
-    embed.add_field(name=f"👥 Players ({stats['players_count']}/{stats['max_players']})", value=player_list_str, inline=False)
+    embed.add_field(
+        name="🧠 **MEMORY (RAM)**",
+        value=f"{ram_bar} **{stats['ram_percent']}%**\n`{stats['ram_used_mb']} MB / {stats['ram_allocated_mb']} MB`",
+        inline=True
+    )
+    embed.add_field(
+        name="⚙️ **CPU LOAD**",
+        value=f"{cpu_bar} **{stats['cpu_percent']}%**\n`4 Cores Active`",
+        inline=True
+    )
+    embed.add_field(
+        name="💾 **STORAGE**",
+        value=f"{disk_bar} **{stats['disk_percent']}%**\n`NVMe SSD`",
+        inline=True
+    )
+
+    # 3. Players Section
+    players = stats["online_players"]
+    if players:
+        player_display = " ".join([f"`{p}`" for p in players])
+    else:
+        player_display = "*No players currently in-game.*"
+
+    embed.add_field(
+        name=f"👥 **ONLINE PLAYERS ({stats['players_count']} / {stats['max_players']})**",
+        value=f"> {player_display}\n\u200b",
+        inline=False
+    )
     
     # Minecraft Banner Image
     embed.set_image(url="https://cdn.mos.cms.futurecdn.net/v6XoEzDajGRMWNeLY5NMSb.jpg")
     
-    embed.set_footer(text="⚡ Auto-updates silently every 5s")
+    embed.set_footer(
+        text="⚡ Live Sync Active • Auto-refreshes silently",
+        icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png"
+    )
     return embed
+
 
 
 
