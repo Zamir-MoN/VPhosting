@@ -73,7 +73,7 @@ fi
 sudo -u "$CURRENT_USER" "$INSTALL_DIR/venv/bin/pip" install --upgrade pip
 sudo -u "$CURRENT_USER" "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
 
-# 5. Create and Enable Systemd Background Service
+# 5. Create and Enable Systemd Background Service (Web Panel)
 echo -e "${YELLOW}⚡ [4/5] Creating 24/7 System Background Service (valqore.service)...${NC}"
 cat <<EOF > /etc/systemd/system/valqore.service
 [Unit]
@@ -96,7 +96,28 @@ systemctl daemon-reload
 systemctl enable valqore
 systemctl restart valqore
 
-# 6. Configure Firewall Ports
+# 6. Configure Optional Discord Bot Service (valqore-bot.service)
+cat <<EOF > /etc/systemd/system/valqore-bot.service
+[Unit]
+Description=Valqore Hosting Discord Bot Service
+After=network.target
+
+[Service]
+User=$CURRENT_USER
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$INSTALL_DIR/venv/bin/python discord_bot.py
+Restart=always
+RestartSec=5
+Environment=PATH=/usr/bin:/bin:/usr/local/bin:$INSTALL_DIR/venv/bin
+EnvironmentFile=-$INSTALL_DIR/.env
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+
+# 7. Configure Firewall Ports
 echo -e "${YELLOW}⚡ [5/5] Configuring firewall rules for web panel and Minecraft...${NC}"
 ufw allow OpenSSH >/dev/null 2>&1 || true
 ufw allow 8090/tcp >/dev/null 2>&1 || true
@@ -107,14 +128,19 @@ ufw allow 25565/udp >/dev/null 2>&1 || true
 PUBLIC_IP=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || hostname -I | awk '{print $1}')
 
 echo -e "\n${GREEN}${BOLD}========================================================================${NC}"
-echo -e "${GREEN}${BOLD}🎉 CONGRATULATIONS! VALQORE PANEL IS INSTALLED & RUNNING 24/7! 🎉${NC}"
+echo -e "${GREEN}${BOLD}🎉 CONGRATULATIONS! VALQORE PANEL & BOT READY ON YOUR VPS! 🎉${NC}"
 echo -e "${GREEN}${BOLD}========================================================================${NC}\n"
 echo -e "🌐 ${BOLD}Open your Web Dashboard in your browser:${NC}"
 echo -e "   👉 ${CYAN}${BOLD}http://${PUBLIC_IP}:8090${NC}\n"
 echo -e "🎮 ${BOLD}Minecraft Game Server Connection Address:${NC}"
 echo -e "   👉 ${YELLOW}${BOLD}${PUBLIC_IP}:25565${NC}\n"
-echo -e "⚙️ ${BOLD}Quick Management Commands:${NC}"
+echo -e "🤖 ${BOLD}To Activate the Discord Bot (24/7 Service):${NC}"
+echo -e "   1. Set your Bot Token:  ${CYAN}echo 'DISCORD_BOT_TOKEN=\"your_token_here\"' > $INSTALL_DIR/.env${NC}"
+echo -e "   2. Start Bot Service:   ${CYAN}sudo systemctl enable --now valqore-bot${NC}"
+echo -e "   3. View Bot Logs:       ${CYAN}sudo journalctl -u valqore-bot -f${NC}\n"
+echo -e "⚙️ ${BOLD}Panel Management Commands:${NC}"
 echo -e "   • Check Status:    ${CYAN}sudo systemctl status valqore${NC}"
 echo -e "   • Restart Panel:   ${CYAN}sudo systemctl restart valqore${NC}"
-echo -e "   • Live Logs:       ${CYAN}sudo journalctl -u valqore -f${NC}"
+echo -e "   • Live Panel Logs: ${CYAN}sudo journalctl -u valqore -f${NC}"
 echo -e "${GREEN}${BOLD}========================================================================${NC}\n"
+

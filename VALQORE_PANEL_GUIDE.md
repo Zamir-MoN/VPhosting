@@ -37,3 +37,32 @@ curl -sSL https://raw.githubusercontent.com/Zamir-MoN/VPhosting/main/install.sh 
 * **Update Panel**: `cd /home/ubuntu/valqore && git pull origin main && sudo systemctl restart valqore`
 * **Restart Panel**: `sudo systemctl restart valqore`
 * **Live Logs**: `sudo journalctl -u valqore -f`
+
+---
+
+### 🖥️ 5. Run in a Screen Session (Alternative to systemd)
+
+If you prefer running the panel inside a `screen` session instead of systemd:
+
+```bash
+# 1. Install screen (if not installed)
+sudo apt update && sudo apt install screen -y
+
+# 2. Start screen session named 'valqore'
+screen -S valqore
+
+# 3. Inside the screen, start the panel
+cd /home/ubuntu/valqore
+source venv/bin/activate
+uvicorn main:app --host 0.0.0.0 --port 8090
+```
+
+#### Useful Screen Commands:
+* **Detach Screen (leave running in background)**: Press `Ctrl + A`, then press `D`
+* **Re-attach / View Screen**: `screen -r valqore`
+* **List Running Screens**: `screen -ls`
+* **Direct 1-Line Background Launch**:
+  ```bash
+  screen -dmS valqore bash -c "cd /home/ubuntu/valqore && source venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8090"
+  ```
+

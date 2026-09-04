@@ -144,13 +144,15 @@ function switchTab(tabId, element) {
 }
 
 // --- IP Logic ---
+const SERVER_DIRECT_IP = "valqore-arcane-smp.indevs.in";
+
 function initIpDisplay() {
     const el = document.getElementById('serverIpDisplay');
-    if (el) el.innerText = window.location.hostname + ":25565";
+    if (el) el.innerText = SERVER_DIRECT_IP;
 }
 
 async function copyIp() {
-    const ipText = window.location.hostname + ":25565";
+    const ipText = SERVER_DIRECT_IP;
     let copied = false;
 
     // Try modern Clipboard API

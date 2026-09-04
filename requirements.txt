@@ -6,3 +6,4 @@ requests
 google-auth-oauthlib
 google-api-python-client
 psutil
+discord.py
