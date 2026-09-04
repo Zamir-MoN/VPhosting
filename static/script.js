@@ -227,7 +227,16 @@ async function fetchStats() {
             if (ipEl) ipEl.innerText = data.public_ip;
         }
 
+        // Update Server Engine & Version Badge
+        const engineBadge = document.getElementById('headerEngineBadge');
+        if (engineBadge && data.engine) {
+            const vText = data.version ? ` ${data.version}` : '';
+            engineBadge.innerHTML = `<i data-lucide="box" style="width: 12px; height: 12px;"></i> ${data.engine}${vText}`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
         // Handle Global Status Badge & Power Buttons state
+
 
         const startBtn = document.querySelector('button[onclick="apiCall(\'/api/start\')"]');
         const stopBtn = document.querySelector('button[onclick="apiCall(\'/api/stop\')"]');
