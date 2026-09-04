@@ -306,8 +306,13 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
 
     player_list_str = ", ".join(stats["online_players"]) if stats["online_players"] else "*None*"
     embed.add_field(name=f"👥 Players ({stats['players_count']}/{stats['max_players']})", value=player_list_str, inline=False)
+    
+    # Minecraft Banner Image
+    embed.set_image(url="https://cdn.mos.cms.futurecdn.net/v6XoEzDajGRMWNeLY5NMSb.jpg")
+    
     embed.set_footer(text="⚡ Auto-updates silently every 5s")
     return embed
+
 
 
 # ==========================================
