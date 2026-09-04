@@ -592,7 +592,8 @@ async def auto_refresh_panels():
     try:
         embed = build_status_embed()
         dead_keys = []
-        for key, msg in list(active_panel_messages.items()):
+        for key, val in list(active_panel_messages.items()):
+            msg = val[1] if isinstance(val, (list, tuple)) else val
             try: await msg.edit(embed=embed)
             except discord.NotFound: dead_keys.append(key)
             except: pass
@@ -626,20 +627,48 @@ async def cmd_panel(interaction: discord.Interaction):
     if not is_admin(interaction):
         return await interaction.response.send_message("❌ You need Admin permissions to post the control panel.", ephemeral=True)
     await interaction.response.defer()
+
+    # Clean up and delete any previous panel message in this channel
+    channel_id = interaction.channel_id
+    to_delete = []
+    for msg_id, (m_chan_id, msg) in list(active_panel_messages.items()):
+        if m_chan_id == channel_id:
+            to_delete.append((msg_id, msg))
+    for msg_id, msg in to_delete:
+        try: await msg.delete()
+        except: pass
+        active_panel_messages.pop(msg_id, None)
+
     view = ServerControlView()
     embed = build_status_embed()
     msg = await interaction.followup.send(embed=embed, view=view)
-    active_panel_messages[msg.id] = msg
+    active_panel_messages[msg.id] = (channel_id, msg)
 
 
 @bot.command(name="panel")
 async def p_panel(ctx):
     if not is_admin(ctx):
         return await ctx.send("❌ Admin permissions required.")
+    
+    # Clean up and delete any previous panel message in this channel
+    channel_id = ctx.channel.id
+    to_delete = []
+    for msg_id, (m_chan_id, msg) in list(active_panel_messages.items()):
+        if m_chan_id == channel_id:
+            to_delete.append((msg_id, msg))
+    for msg_id, msg in to_delete:
+        try: await msg.delete()
+        except: pass
+        active_panel_messages.pop(msg_id, None)
+
+    # Delete the user's trigger message if bot has manage_messages permission
+    try: await ctx.message.delete()
+    except: pass
+
     view = ServerControlView()
     embed = build_status_embed()
     msg = await ctx.send(embed=embed, view=view)
-    active_panel_messages[msg.id] = msg
+    active_panel_messages[msg.id] = (channel_id, msg)
 
 @bot.tree.command(name="status", description="Check live RAM, CPU, disk usage, and online players.")
 async def cmd_status(interaction: discord.Interaction):
