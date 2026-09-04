@@ -377,6 +377,27 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
 
 
 
+def strip_ansi_codes(text: str) -> str:
+    """Removes ANSI terminal escape sequences and raw color artifact codes."""
+    if not text: return ""
+    # Strip \x1b[...] or \033[...]
+    ansi_regex = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]|\033\[[0-9;]*[a-zA-Z]|\[[0-9;]+m')
+    clean = ansi_regex.sub('', text)
+    # Filter out stray non-printable control chars except \n and \t
+    clean = "".join(ch for ch in clean if ch == '\n' or ch == '\t' or ord(ch) >= 32)
+    return clean.strip()
+
+def get_clean_logs(lines_count=18) -> str:
+    raw = get_latest_logs(lines_count)
+    cleaned = strip_ansi_codes(raw)
+    if not cleaned:
+        return "No logs available or server is offline."
+    # Ensure fits in Discord code block
+    if len(cleaned) > 1800:
+        cleaned = cleaned[-1800:]
+    return cleaned
+
+
 # ==========================================
 # MORE OPTIONS MODAL & SUB-VIEW
 # ==========================================
@@ -399,11 +420,56 @@ class SendConsoleCommandModal(discord.ui.Modal, title="💻 Execute Server Comma
             await interaction.response.send_message(f"❌ {msg}", ephemeral=True)
 
 
+class LiveConsoleView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Refresh Logs", style=discord.ButtonStyle.primary, emoji="🔄", custom_id="mc_btn_console_refresh")
+    async def btn_refresh_console(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        logs = get_clean_logs(18)
+        embed = discord.Embed(
+            title="📜 LIVE MINECRAFT CONSOLE",
+            description=f"```fix\n{logs}\n```",
+            color=discord.Color.from_rgb(230, 255, 0),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.set_footer(text="⚡ Valqore Live Console • Click Refresh to fetch latest lines", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="Send Command", style=discord.ButtonStyle.success, emoji="💻", custom_id="mc_btn_console_sendcmd")
+    async def btn_send_cmd(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        await interaction.response.send_modal(SendConsoleCommandModal())
+
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.danger, emoji="↩️", custom_id="mc_btn_console_back")
+    async def btn_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = build_status_embed()
+        embed.set_footer(text="⚙️ More Options Menu • Select an action below or click Back", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        await interaction.response.edit_message(embed=embed, view=MoreOptionsView())
+
+
 class MoreOptionsView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Console Command", style=discord.ButtonStyle.primary, emoji="💻", custom_id="mc_btn_opt_cmd")
+    @discord.ui.button(label="Live Console", style=discord.ButtonStyle.primary, emoji="📜", custom_id="mc_btn_opt_live_console")
+    async def btn_live_console(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        logs = get_clean_logs(18)
+        embed = discord.Embed(
+            title="📜 LIVE MINECRAFT CONSOLE",
+            description=f"```fix\n{logs}\n```",
+            color=discord.Color.from_rgb(230, 255, 0),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.set_footer(text="⚡ Valqore Live Console • Click Refresh to fetch latest lines", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        await interaction.response.edit_message(embed=embed, view=LiveConsoleView())
+
+    @discord.ui.button(label="Console Command", style=discord.ButtonStyle.secondary, emoji="💻", custom_id="mc_btn_opt_cmd")
     async def btn_cmd_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
@@ -580,6 +646,7 @@ async def on_ready():
 
     bot.add_view(ServerControlView())
     bot.add_view(MoreOptionsView())
+    bot.add_view(LiveConsoleView())
     if not update_presence.is_running():
         update_presence.start()
     if not auto_refresh_panels.is_running():
