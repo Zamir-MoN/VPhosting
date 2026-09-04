@@ -897,7 +897,7 @@ class MoreOptionsView(discord.ui.View):
         embed = view.build_player_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label="Backup World", style=discord.ButtonStyle.success, emoji="📦", custom_id="mc_btn_opt_backup")
+    @discord.ui.button(label="Backup World", style=discord.ButtonStyle.success, emoji="📥", custom_id="mc_btn_opt_backup")
     async def btn_backup(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
