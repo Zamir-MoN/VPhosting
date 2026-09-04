@@ -378,6 +378,69 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
 
 
 # ==========================================
+# MORE OPTIONS MODAL & SUB-VIEW
+# ==========================================
+class SendConsoleCommandModal(discord.ui.Modal, title="💻 Execute Server Command"):
+    cmd_input = discord.ui.TextInput(
+        label="Minecraft Command",
+        placeholder="e.g. op PlayerName, weather clear, time set day",
+        required=True,
+        max_length=150
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        raw_cmd = self.cmd_input.value.strip().lstrip("/")
+        ok, msg = send_console_command(raw_cmd)
+        if ok:
+            await interaction.response.send_message(f"✅ **Command executed on console:**\n`/{raw_cmd}`", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"❌ {msg}", ephemeral=True)
+
+
+class MoreOptionsView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Console Command", style=discord.ButtonStyle.primary, emoji="💻", custom_id="mc_btn_opt_cmd")
+    async def btn_cmd_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        await interaction.response.send_modal(SendConsoleCommandModal())
+
+    @discord.ui.button(label="Live Logs", style=discord.ButtonStyle.secondary, emoji="📜", custom_id="mc_btn_opt_logs")
+    async def btn_opt_logs(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        logs = get_latest_logs(20)
+        if len(logs) > 1900: logs = logs[-1900:]
+        await interaction.response.send_message(f"**📜 Recent Console Logs (Last 20 lines):**\n```ansi\n{logs}\n```", ephemeral=True)
+
+    @discord.ui.button(label="Player List", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="mc_btn_opt_players")
+    async def btn_opt_players(self, interaction: discord.Interaction, button: discord.ui.Button):
+        stats = get_stats_data()
+        players = stats.get("online_players", [])
+        if not stats["running"]:
+            return await interaction.response.send_message("🔴 Server is currently offline.", ephemeral=True)
+        
+        embed = discord.Embed(
+            title=f"👥 Online Players ({len(players)}/{stats['max_players']})",
+            color=discord.Color.green()
+        )
+        if players:
+            embed.description = "\n".join([f"• `{p}`" for p in players])
+        else:
+            embed.description = "*No players currently online on the server.*"
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @discord.ui.button(label="Back to Controls", style=discord.ButtonStyle.danger, emoji="⬅️", custom_id="mc_btn_opt_back")
+    async def btn_opt_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = build_status_embed()
+        await interaction.response.edit_message(embed=embed, view=ServerControlView())
+
+
+# ==========================================
 # REAL PROGRESS-TRACKED CONTROL PANEL VIEW
 # ==========================================
 class ServerControlView(discord.ui.View):
@@ -496,11 +559,13 @@ class ServerControlView(discord.ui.View):
         try: await interaction.message.edit(embed=build_status_embed(), view=self)
         except: pass
 
-    @discord.ui.button(label="Live Logs", style=discord.ButtonStyle.secondary, emoji="📜", custom_id="mc_btn_logs")
-    async def btn_logs(self, interaction: discord.Interaction, button: discord.ui.Button):
-        logs = get_latest_logs(15)
-        if len(logs) > 1900: logs = logs[-1900:]
-        await interaction.response.send_message(f"**📜 Recent Console Logs:**\n```ansi\n{logs}\n```", ephemeral=True)
+    @discord.ui.button(label="More Options", style=discord.ButtonStyle.secondary, emoji="⚙️", custom_id="mc_btn_more_options")
+    async def btn_more_options(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ You do not have permission to manage this server.", ephemeral=True)
+        embed = build_status_embed()
+        embed.set_footer(text="⚙️ More Options Menu • Select an action below or click Back", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        await interaction.response.edit_message(embed=embed, view=MoreOptionsView())
 
 
 # ==========================================
@@ -522,6 +587,7 @@ async def on_ready():
         print(f"Sync error: {e}")
 
     bot.add_view(ServerControlView())
+    bot.add_view(MoreOptionsView())
     if not update_presence.is_running():
         update_presence.start()
     if not auto_refresh_panels.is_running():
