@@ -351,11 +351,49 @@ def get_stats():
             "gamemode": default_gamemode
         })
 
+    # Detect real public IP of VPS or custom domain
+    vps_ip = None
+    custom_ip = os.getenv("SERVER_IP")
+    if custom_ip:
+        vps_ip = custom_ip
+    else:
+        for ip_svc in ["https://api.ipify.org", "https://ifconfig.me/ip", "https://checkip.amazonaws.com"]:
+            try:
+                res = requests.get(ip_svc, timeout=1.5)
+                if res.status_code == 200 and len(res.text.strip().split('.')) == 4:
+                    vps_ip = f"{res.text.strip()}:25565"
+                    break
+            except:
+                pass
+    if not vps_ip:
+        vps_ip = "51.20.121.253:25565"
+
+    # Detect engine and version
+    detected_engine = "PaperMC"
+    detected_version = "1.21.1"
+    log_file_path = os.path.join(MC_DIR, "logs", "latest.log")
+    if os.path.exists(log_file_path):
+        try:
+            with open(log_file_path, "r", encoding="utf-8", errors="ignore") as f:
+                header_lines = f.readlines()[:100]
+                for line in header_lines:
+                    if "Starting minecraft server version" in line:
+                        v_match = re.search(r"version\s+([0-9\.]+)", line, re.IGNORECASE)
+                        if v_match:
+                            detected_version = v_match.group(1)
+                    if "This server is running" in line:
+                        if "Purpur" in line: detected_engine = "Purpur"
+                        elif "Paper" in line: detected_engine = "PaperMC"
+                        elif "Fabric" in line: detected_engine = "Fabric"
+                        elif "Forge" in line: detected_engine = "Forge"
+                        elif "Spigot" in line: detected_engine = "Spigot"
+        except:
+            pass
+
     detailed_status = get_server_detailed_state()
     return {
         "status": detailed_status,
         "cpu_percent": cpu,
-
         "cpu_cores": cpu_cores,
         "ram_percent": ram,
         "ram_used_mb": ram_used_mb,
@@ -367,8 +405,13 @@ def get_stats():
         "backup_countdown": int(remaining),
         "backup_percent": backup_percent,
         "online_players": rich_online_players,
-        "all_players": rich_all_players
+        "all_players": rich_all_players,
+        "public_ip": vps_ip,
+        "server_ip": vps_ip,
+        "engine": detected_engine,
+        "version": detected_version
     }
+
 
 @app.get("/api/backup/manual")
 async def manual_backup(background_tasks: BackgroundTasks):

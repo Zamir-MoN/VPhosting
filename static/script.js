@@ -143,12 +143,14 @@ function switchTab(tabId, element) {
     if (tabId === 'players') fetchPlayers();
 }
 
-// --- IP Logic ---
-const SERVER_DIRECT_IP = "valqore-arcane-smp.indevs.in";
+// // --- Dynamic IP Logic ---
+let SERVER_DIRECT_IP = window.location.hostname ? `${window.location.hostname}:25565` : "51.20.121.253:25565";
 
 function initIpDisplay() {
     const el = document.getElementById('serverIpDisplay');
-    if (el) el.innerText = SERVER_DIRECT_IP;
+    if (el && el.innerText.includes("valqore-arcane-smp")) {
+        el.innerText = SERVER_DIRECT_IP;
+    }
 }
 
 async function copyIp() {
@@ -183,6 +185,12 @@ async function copyIp() {
         }
     }
 
+    if (copied) {
+        showToast(`Server IP copied to clipboard! (${ipText})`, 'success');
+    } else {
+        showToast(`Address: ${ipText}`, 'info');
+    }
+
     // Visual button bounce & icon checkmark feedback
     const btn = document.querySelector('#connectionBar .icon-btn');
     if (btn) {
@@ -212,7 +220,15 @@ async function fetchStats() {
         const latency = performance.now() - startTime;
         const data = await res.json();
         
+        // Update Direct IP dynamically
+        if (data.public_ip) {
+            SERVER_DIRECT_IP = data.public_ip;
+            const ipEl = document.getElementById('serverIpDisplay');
+            if (ipEl) ipEl.innerText = data.public_ip;
+        }
+
         // Handle Global Status Badge & Power Buttons state
+
         const startBtn = document.querySelector('button[onclick="apiCall(\'/api/start\')"]');
         const stopBtn = document.querySelector('button[onclick="apiCall(\'/api/stop\')"]');
         const restartBtn = document.querySelector('button[onclick="apiCall(\'/api/restart\')"]');
