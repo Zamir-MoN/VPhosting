@@ -82,6 +82,89 @@ def get_server_metadata():
     return {"engine": engine, "version": version}
 
 
+def get_whitelist_data():
+    """Reads whitelist.json and server.properties to determine status and list of whitelisted players."""
+    props_path = os.path.join(MC_DIR, "server.properties")
+    whitelist_json_path = os.path.join(MC_DIR, "whitelist.json")
+    is_enabled = False
+    
+    # 1. Read server.properties for white-list=true/false
+    if os.path.exists(props_path):
+        try:
+            with open(props_path, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    clean = line.strip()
+                    if clean.startswith("white-list="):
+                        val = clean.split("=", 1)[1].strip().lower()
+                        is_enabled = (val == "true")
+        except:
+            pass
+
+    # 2. Read whitelist.json for members
+    members = []
+    if os.path.exists(whitelist_json_path):
+        try:
+            with open(whitelist_json_path, "r", encoding="utf-8", errors="ignore") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    for item in data:
+                        if isinstance(item, dict) and "name" in item:
+                            members.append(item["name"])
+                        elif isinstance(item, str):
+                            members.append(item)
+        except:
+            pass
+
+    return {
+        "enabled": is_enabled,
+        "members": members
+    }
+
+def set_whitelist_state(enable: bool):
+    """Enables or disables the whitelist live via console and updates server.properties."""
+    cmd = "whitelist on" if enable else "whitelist off"
+    send_console_command(cmd)
+    
+    # Persist in server.properties
+    props_path = os.path.join(MC_DIR, "server.properties")
+    if os.path.exists(props_path):
+        try:
+            with open(props_path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+            new_lines = []
+            found = False
+            for line in lines:
+                if line.strip().startswith("white-list="):
+                    new_lines.append(f"white-list={'true' if enable else 'false'}\n")
+                    found = True
+                else:
+                    new_lines.append(line)
+            if not found:
+                new_lines.append(f"white-list={'true' if enable else 'false'}\n")
+            with open(props_path, "w", encoding="utf-8") as f:
+                f.writelines(new_lines)
+        except:
+            pass
+
+def add_whitelist_user(username: str):
+    """Adds a player to the whitelist via console and reload."""
+    clean_user = username.strip()
+    if clean_user:
+        send_console_command(f"whitelist add {clean_user}")
+        send_console_command("whitelist reload")
+        return True
+    return False
+
+def remove_whitelist_user(username: str):
+    """Removes a player from the whitelist via console and reload."""
+    clean_user = username.strip()
+    if clean_user:
+        send_console_command(f"whitelist remove {clean_user}")
+        send_console_command("whitelist reload")
+        return True
+    return False
+
+
 # Load BOT_TOKEN from env or .env file
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 if not BOT_TOKEN and os.path.exists(ENV_FILE):
@@ -867,6 +950,166 @@ class PlayerManagerView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=MoreOptionsView())
 
 
+# ==========================================
+# WHITELIST MANAGER MODALS & VIEWS
+# ==========================================
+class AddWhitelistMemberModal(discord.ui.Modal, title="➕ Add Player to Whitelist"):
+    player_input = discord.ui.TextInput(
+        label="Minecraft Player Username",
+        placeholder="e.g. Steve, Alex, Zamir909",
+        required=True,
+        max_length=32
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        player_name = self.player_input.value.strip()
+        if not player_name:
+            return await interaction.response.send_message("❌ Invalid player name.", ephemeral=True)
+        
+        add_whitelist_user(player_name)
+        new_view = WhitelistManagerView()
+        embed = new_view.build_whitelist_embed()
+        if interaction.message:
+            await interaction.response.edit_message(embed=embed, view=new_view)
+        else:
+            await interaction.response.send_message(f"✅ Added `{player_name}` to whitelist.", ephemeral=True)
+
+
+class WhitelistSelectDropdown(discord.ui.Select):
+    def __init__(self, members_list):
+        options = []
+        for m in members_list[:25]:
+            options.append(discord.SelectOption(
+                label=m,
+                description="Click to remove from whitelist",
+                emoji="🛡️",
+                value=m
+            ))
+        if not options:
+            options.append(discord.SelectOption(
+                label="No whitelisted players",
+                description="Use the Add Player button to add one",
+                value="none"
+            ))
+        super().__init__(placeholder="👉 Select a player to remove from whitelist...", min_values=1, max_values=1, options=options, row=0)
+
+    async def callback(self, interaction: discord.Interaction):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        selected_name = self.values[0]
+        if selected_name == "none":
+            return await interaction.response.send_message("ℹ️ No player selected.", ephemeral=True)
+        
+        remove_whitelist_user(selected_name)
+        new_view = WhitelistManagerView()
+        embed = new_view.build_whitelist_embed()
+        await interaction.response.edit_message(embed=embed, view=new_view)
+
+
+class WhitelistManagerView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.wl_data = get_whitelist_data()
+        self.setup_items()
+
+    def setup_items(self):
+        self.clear_items()
+        
+        # Row 0: Dropdown to remove players if any exist
+        if self.wl_data["members"]:
+            self.add_item(WhitelistSelectDropdown(self.wl_data["members"]))
+
+        # Row 1: Whitelist Toggle ON/OFF
+        is_on = self.wl_data["enabled"]
+        toggle_label = "Whitelist: ON ✓" if is_on else "Whitelist: OFF"
+        toggle_style = discord.ButtonStyle.success if is_on else discord.ButtonStyle.secondary
+        toggle_emoji = "🛡️" if is_on else "🔓"
+        
+        btn_toggle = discord.ui.Button(label=toggle_label, style=toggle_style, emoji=toggle_emoji, row=1)
+        btn_toggle.callback = self.cb_toggle
+        self.add_item(btn_toggle)
+
+        # Row 1: Add Player Button
+        btn_add = discord.ui.Button(label="Add Member", style=discord.ButtonStyle.primary, emoji="➕", row=1)
+        btn_add.callback = self.cb_add
+        self.add_item(btn_add)
+
+        # Row 1: Refresh Button
+        btn_refresh = discord.ui.Button(label="Refresh", style=discord.ButtonStyle.secondary, emoji="🔄", row=1)
+        btn_refresh.callback = self.cb_refresh
+        self.add_item(btn_refresh)
+
+        # Row 1: Back Button
+        btn_back = discord.ui.Button(label="Back", style=discord.ButtonStyle.danger, emoji="↩️", row=1)
+        btn_back.callback = self.cb_back
+        self.add_item(btn_back)
+
+    def build_whitelist_embed(self) -> discord.Embed:
+        self.wl_data = get_whitelist_data()
+        is_on = self.wl_data["enabled"]
+        members = self.wl_data["members"]
+
+        status_text = "🟢 **ENABLED (Enforced)**" if is_on else "🔴 **DISABLED (Open Server)**"
+        
+        if members:
+            member_list_text = "\n".join([f"• `{m}`" for m in members[:30]])
+            if len(members) > 30:
+                member_list_text += f"\n*...and {len(members)-30} more*"
+        else:
+            member_list_text = "*No whitelisted members configured.*"
+
+        embed = discord.Embed(
+            title="🛡️ SERVER WHITELIST MANAGER",
+            description=(
+                f"**Current Status:** {status_text}\n\n"
+                f"Toggle protection on/off or add/remove players who are allowed to join the server."
+            ),
+            color=discord.Color.green() if is_on else discord.Color.red(),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.add_field(
+            name=f"📋 **WHITELISTED PLAYERS ({len(members)})**",
+            value=member_list_text,
+            inline=False
+        )
+        embed.set_footer(
+            text="⚡ Valqore Whitelist System • Live Console & server.properties sync",
+            icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png"
+        )
+        return embed
+
+    async def cb_toggle(self, interaction: discord.Interaction):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        
+        new_state = not self.wl_data["enabled"]
+        set_whitelist_state(new_state)
+        self.wl_data = get_whitelist_data()
+        self.setup_items()
+        await interaction.response.edit_message(embed=self.build_whitelist_embed(), view=self)
+
+    async def cb_add(self, interaction: discord.Interaction):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        await interaction.response.send_modal(AddWhitelistMemberModal())
+
+    async def cb_refresh(self, interaction: discord.Interaction):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        self.wl_data = get_whitelist_data()
+        self.setup_items()
+        await interaction.response.edit_message(embed=self.build_whitelist_embed(), view=self)
+
+    async def cb_back(self, interaction: discord.Interaction):
+        if interaction.message and interaction.message.id in active_panel_messages:
+            active_panel_messages[interaction.message.id]["mode"] = "options"
+        embed = build_status_embed()
+        embed.set_footer(text="⚙️ More Options Menu • Select an action below or click Back", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        await interaction.response.edit_message(embed=embed, view=MoreOptionsView())
+
+
 class MoreOptionsView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -895,6 +1138,16 @@ class MoreOptionsView(discord.ui.View):
             active_panel_messages[interaction.message.id]["mode"] = "players"
         view = PlayerManagerView()
         embed = view.build_player_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label="Whitelist", style=discord.ButtonStyle.secondary, emoji="🛡️", custom_id="mc_btn_opt_whitelist")
+    async def btn_opt_whitelist(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        if interaction.message and interaction.message.id in active_panel_messages:
+            active_panel_messages[interaction.message.id]["mode"] = "whitelist"
+        view = WhitelistManagerView()
+        embed = view.build_whitelist_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
     @discord.ui.button(label="Back", style=discord.ButtonStyle.danger, emoji="↩️", custom_id="mc_btn_opt_back")
