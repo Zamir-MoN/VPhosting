@@ -499,56 +499,111 @@ class LiveConsoleView(discord.ui.View):
 # PLAYER MANAGER & ACTION VIEWS
 # ==========================================
 class PlayerActionsView(discord.ui.View):
-    def __init__(self, player_name: str, is_online: bool = True, is_op: bool = False):
+    def __init__(self, player_name: str, is_online: bool = True, is_op: bool = False, current_gamemode: str = "survival"):
         super().__init__(timeout=None)
         self.player_name = player_name
         self.is_online = is_online
         self.is_op = is_op
+        self.current_gamemode = (current_gamemode or "survival").lower()
+        self.setup_buttons()
 
-    @discord.ui.button(label="Survival", style=discord.ButtonStyle.secondary, emoji="⚔️", row=0)
-    async def btn_gamemode_survival(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not is_admin(interaction):
-            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
-        send_console_command(f"gamemode survival {self.player_name}")
-        await interaction.response.send_message(f"⚔️ Changed **{self.player_name}** gamemode to **Survival**.", ephemeral=True)
+    def setup_buttons(self):
+        self.clear_items()
+        
+        # Row 0: Gamemode Switchers with active highlight (✅ and Green style for currently active mode)
+        modes = [
+            ("survival", "Survival", "⚔️"),
+            ("creative", "Creative", "🧱"),
+            ("spectator", "Spectator", "👁️"),
+            ("adventure", "Adventure", "🗺️")
+        ]
+        
+        for mode_id, mode_label, mode_emoji in modes:
+            is_active = (self.current_gamemode == mode_id)
+            label = f"{mode_label} ✓" if is_active else mode_label
+            style = discord.ButtonStyle.success if is_active else discord.ButtonStyle.secondary
+            btn = discord.ui.Button(label=label, style=style, emoji=mode_emoji, row=0)
+            btn.callback = self.make_gamemode_callback(mode_id, mode_label)
+            self.add_item(btn)
 
-    @discord.ui.button(label="Creative", style=discord.ButtonStyle.secondary, emoji="🧱", row=0)
-    async def btn_gamemode_creative(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not is_admin(interaction):
-            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
-        send_console_command(f"gamemode creative {self.player_name}")
-        await interaction.response.send_message(f"🧱 Changed **{self.player_name}** gamemode to **Creative**.", ephemeral=True)
+        # Row 1: OP Toggle (Shows OP Player if not OP, DE-OP if currently OP)
+        if self.is_op:
+            btn_deop = discord.ui.Button(label="Remove OP (DE-OP)", style=discord.ButtonStyle.danger, emoji="⛔", row=1)
+            btn_deop.callback = self.cb_deop
+            self.add_item(btn_deop)
+        else:
+            btn_op = discord.ui.Button(label="Make Operator (OP)", style=discord.ButtonStyle.primary, emoji="👑", row=1)
+            btn_op.callback = self.cb_op
+            self.add_item(btn_op)
 
-    @discord.ui.button(label="Spectator", style=discord.ButtonStyle.secondary, emoji="👁️", row=0)
-    async def btn_gamemode_spectator(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not is_admin(interaction):
-            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
-        send_console_command(f"gamemode spectator {self.player_name}")
-        await interaction.response.send_message(f"👁️ Changed **{self.player_name}** gamemode to **Spectator**.", ephemeral=True)
+        # Kick button (Only functional if online)
+        kick_style = discord.ButtonStyle.danger if self.is_online else discord.ButtonStyle.secondary
+        kick_label = "Kick Player" if self.is_online else "Offline (Cannot Kick)"
+        btn_kick = discord.ui.Button(label=kick_label, style=kick_style, emoji="👢", disabled=not self.is_online, row=1)
+        btn_kick.callback = self.cb_kick
+        self.add_item(btn_kick)
 
-    @discord.ui.button(label="OP Player", style=discord.ButtonStyle.success, emoji="👑", row=1)
-    async def btn_op(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Row 2: Back button
+        btn_back = discord.ui.Button(label="Back to Player List", style=discord.ButtonStyle.danger, emoji="↩️", row=2)
+        btn_back.callback = self.cb_back
+        self.add_item(btn_back)
+
+    def build_embed(self) -> discord.Embed:
+        avatar_url = f"https://mc-heads.net/avatar/{self.player_name}/100"
+        status_badge = "🟢 **ONLINE (IN-GAME)**" if self.is_online else "⚫ **OFFLINE**"
+        op_badge = "👑 **OPERATOR (ADMIN)**" if self.is_op else "👤 **Standard Player**"
+        mode_badge = f"🎮 **{self.current_gamemode.upper()}**"
+
+        embed = discord.Embed(
+            title=f"👤 PLAYER CONTROL: {self.player_name}",
+            description=(
+                f"**Connection Status:** {status_badge}\n"
+                f"**Permission Rank:** {op_badge}\n"
+                f"**Active Gamemode:** {mode_badge}\n\n"
+                f"*(Active states are highlighted with **Green & ✓ Checkmarks**)*"
+            ),
+            color=discord.Color.from_rgb(230, 255, 0),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.set_thumbnail(url=avatar_url)
+        embed.set_footer(text="⚡ Valqore Live Player Controls • Real-time Sync", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        return embed
+
+    def make_gamemode_callback(self, mode_id, mode_label):
+        async def callback(interaction: discord.Interaction):
+            if not is_admin(interaction):
+                return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+            send_console_command(f"gamemode {mode_id} {self.player_name}")
+            self.current_gamemode = mode_id
+            self.setup_buttons()
+            await interaction.response.edit_message(embed=self.build_embed(), view=self)
+        return callback
+
+    async def cb_op(self, interaction: discord.Interaction):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
         send_console_command(f"op {self.player_name}")
-        await interaction.response.send_message(f"👑 Promoted **{self.player_name}** to Server Operator (OP)!", ephemeral=True)
+        self.is_op = True
+        self.setup_buttons()
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
-    @discord.ui.button(label="DE-OP", style=discord.ButtonStyle.danger, emoji="⛔", row=1)
-    async def btn_deop(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def cb_deop(self, interaction: discord.Interaction):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
         send_console_command(f"deop {self.player_name}")
-        await interaction.response.send_message(f"⛔ Removed Operator permissions from **{self.player_name}**.", ephemeral=True)
+        self.is_op = False
+        self.setup_buttons()
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
-    @discord.ui.button(label="Kick", style=discord.ButtonStyle.danger, emoji="👢", row=1)
-    async def btn_kick(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def cb_kick(self, interaction: discord.Interaction):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
         send_console_command(f"kick {self.player_name} Kicked by Server Administrator")
-        await interaction.response.send_message(f"👢 Kicked **{self.player_name}** from the server.", ephemeral=True)
+        self.is_online = False
+        self.setup_buttons()
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
-    @discord.ui.button(label="Back to Player List", style=discord.ButtonStyle.danger, emoji="↩️", row=2)
-    async def btn_back_players(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def cb_back(self, interaction: discord.Interaction):
         if interaction.message and interaction.message.id in active_panel_messages:
             active_panel_messages[interaction.message.id]["mode"] = "players"
         view = PlayerManagerView()
@@ -566,7 +621,7 @@ class PlayerSelectDropdown(discord.ui.Select):
             is_op = p.get("is_op", False)
             
             emoji = "🟢" if is_online else "⚫"
-            desc = f"Status: {'ONLINE' if is_online else 'OFFLINE'}" + (" • [OP]" if is_op else "")
+            desc = f"{'ONLINE' if is_online else 'OFFLINE'}" + (" | OP Admin" if is_op else " | Player")
             
             options.append(discord.SelectOption(
                 label=p_name,
@@ -597,20 +652,11 @@ class PlayerSelectDropdown(discord.ui.Select):
         p_data = next((p for p in all_players if p.get("name") == selected_name), None)
         is_online = p_data.get("status") == "online" if p_data else False
         is_op = p_data.get("is_op", False) if p_data else False
+        current_gamemode = p_data.get("gamemode", "survival") if p_data else "survival"
         
-        # Player Avatar Image
-        avatar_url = f"https://mc-heads.net/avatar/{selected_name}/100"
-        
-        embed = discord.Embed(
-            title=f"👤 PLAYER CONTROL: {selected_name}",
-            description=f"**Status:** {'🟢 **Online**' if is_online else '⚫ **Offline**'}\n**Operator (OP):** {'👑 Yes' if is_op else 'No'}\n\n*Choose an action below to execute in real-time on Minecraft:*",
-            color=discord.Color.from_rgb(230, 255, 0),
-            timestamp=discord.utils.utcnow()
-        )
-        embed.set_thumbnail(url=avatar_url)
-        embed.set_footer(text="⚡ Valqore Player Controls", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
-        
-        await interaction.response.edit_message(embed=embed, view=PlayerActionsView(selected_name, is_online, is_op))
+        view = PlayerActionsView(selected_name, is_online, is_op, current_gamemode)
+        embed = view.build_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
 
 
 class PlayerManagerView(discord.ui.View):
