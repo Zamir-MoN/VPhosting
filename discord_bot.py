@@ -24,6 +24,10 @@ LOG_PATH = os.path.join(MC_DIR, "logs", "latest.log")
 ENV_FILE = os.path.join(BASE_DIR, ".env")
 PANEL_API_URL = "http://127.0.0.1:8090/api"
 
+# Default Server IP / Domain (Auto-detected or configurable via .env)
+SERVER_IP = os.getenv("SERVER_IP", "valqore-arcane-smp.indevs.in")
+
+
 # ==========================================
 # CONFIGURATION
 # ==========================================
@@ -274,6 +278,7 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
         timestamp=discord.utils.utcnow()
     )
 
+    embed.add_field(name="🌐 Direct Join IP", value=f"`{SERVER_IP}`", inline=False)
     embed.add_field(name="🧠 RAM Usage", value=f"`{stats['ram_used_mb']} MB` / `{stats['ram_allocated_mb']} MB` ({stats['ram_percent']}%)", inline=True)
     embed.add_field(name="⚙️ CPU Load", value=f"`{stats['cpu_percent']}%`", inline=True)
     embed.add_field(name="💾 Disk Usage", value=f"`{stats['disk_percent']}%`", inline=True)
@@ -282,6 +287,7 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     embed.add_field(name=f"👥 Players ({stats['players_count']}/{stats['max_players']})", value=player_list_str, inline=False)
     embed.set_footer(text="⚡ Auto-updates silently every 5s")
     return embed
+
 
 # ==========================================
 # REAL PROGRESS-TRACKED CONTROL PANEL VIEW
