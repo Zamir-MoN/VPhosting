@@ -26,12 +26,10 @@ PANEL_API_URL = "http://127.0.0.1:8090/api"
 
 def get_public_ip():
     """Fetches the real public VPS IP address with domain fallback."""
-    # 1. If explicit custom domain/IP is in .env or environment
     custom_ip = os.getenv("SERVER_IP")
     if custom_ip:
         return custom_ip
 
-    # 2. Try fetching the actual public IPv4 address of the VPS
     try:
         with urllib.request.urlopen("https://api.ipify.org", timeout=2) as r:
             ip = r.read().decode('utf-8').strip()
@@ -50,8 +48,24 @@ def get_public_ip():
 
     return "valqore-arcane-smp.indevs.in"
 
+# Load BOT_TOKEN from env or .env file
+BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+if not BOT_TOKEN and os.path.exists(ENV_FILE):
+    try:
+        with open(ENV_FILE, "r", encoding="utf-8") as ef:
+            for line in ef:
+                line = line.strip()
+                if line.startswith("DISCORD_BOT_TOKEN="):
+                    BOT_TOKEN = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    break
+    except Exception:
+        pass
+
+if not BOT_TOKEN:
+    BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
 
 ADMIN_USER_IDS = []
+
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -496,11 +510,12 @@ async def update_presence():
 async def cmd_panel(interaction: discord.Interaction):
     if not is_admin(interaction):
         return await interaction.response.send_message("❌ You need Admin permissions to post the control panel.", ephemeral=True)
+    await interaction.response.defer()
     view = ServerControlView()
     embed = build_status_embed()
-    await interaction.response.send_message(embed=embed, view=view)
-    msg = await interaction.original_response()
+    msg = await interaction.followup.send(embed=embed, view=view)
     active_panel_messages[msg.id] = msg
+
 
 @bot.command(name="panel")
 async def p_panel(ctx):
