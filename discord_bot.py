@@ -409,14 +409,6 @@ class MoreOptionsView(discord.ui.View):
             return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
         await interaction.response.send_modal(SendConsoleCommandModal())
 
-    @discord.ui.button(label="Live Logs", style=discord.ButtonStyle.secondary, emoji="📜", custom_id="mc_btn_opt_logs")
-    async def btn_opt_logs(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not is_admin(interaction):
-            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
-        logs = get_latest_logs(20)
-        if len(logs) > 1900: logs = logs[-1900:]
-        await interaction.response.send_message(f"**📜 Recent Console Logs (Last 20 lines):**\n```ansi\n{logs}\n```", ephemeral=True)
-
     @discord.ui.button(label="Player List", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="mc_btn_opt_players")
     async def btn_opt_players(self, interaction: discord.Interaction, button: discord.ui.Button):
         stats = get_stats_data()
