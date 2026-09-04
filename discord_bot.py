@@ -948,14 +948,30 @@ async def auto_refresh_panels():
     except:
         pass
 
-@tasks.loop(seconds=20)
+@tasks.loop(seconds=5)
 async def update_presence():
     try:
         stats = get_stats_data()
-        if stats["running"]:
+        
+        # Check socket 25565 directly for 100% reliable online detection
+        import socket
+        socket_open = False
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.3)
+            socket_open = (s.connect_ex(('127.0.0.1', 25565)) == 0)
+            s.close()
+        except:
+            pass
+
+        is_online = stats["running"] or socket_open
+        p_count = stats.get('players_count', 0)
+        p_max = stats.get('max_players', 50)
+
+        if is_online:
             activity = discord.Activity(
                 type=discord.ActivityType.playing,
-                name=f"Minecraft ({stats['players_count']}/{stats['max_players']} online)"
+                name=f"Minecraft ({p_count}/{p_max} Online) 🎮"
             )
             await bot.change_presence(status=discord.Status.online, activity=activity)
         else:
@@ -963,8 +979,9 @@ async def update_presence():
                 type=discord.ActivityType.watching,
                 name="Server is Offline 🔴"
             )
-            await bot.change_presence(status=discord.Status.dnd, activity=activity)
-    except: pass
+            await bot.change_presence(status=discord.Status.idle, activity=activity)
+    except Exception as e:
+        pass
 
 # ==========================================
 # SLASH & PREFIX COMMANDS
