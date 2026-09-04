@@ -1029,30 +1029,24 @@ async def update_presence():
 
         if is_online:
             if raw_status == "starting":
-                activity = discord.Activity(
-                    type=discord.ActivityType.watching,
-                    name="Server Booting... ⏳"
-                )
+                activity = discord.Game(name="Minecraft (Booting... ⏳)")
                 await bot.change_presence(status=discord.Status.idle, activity=activity)
             elif p_count > 0:
-                # Show active player names in profile status
                 if len(players) <= 2:
                     p_str = ", ".join(players)
-                    activity = discord.Game(name=f"Minecraft | 👥 {p_str} ({p_count}/{p_max})")
+                    activity = discord.Game(name=f"Minecraft ({p_count}/{p_max} Online: {p_str})")
                 else:
-                    activity = discord.Game(name=f"Minecraft | 👥 {p_count}/{p_max} Players Online")
+                    activity = discord.Game(name=f"Minecraft ({p_count}/{p_max} Players Online)")
                 await bot.change_presence(status=discord.Status.online, activity=activity)
             else:
-                activity = discord.Game(name=f"Minecraft | 🟢 Online (0/{p_max} Players)")
+                activity = discord.Game(name=f"Minecraft (0/{p_max} Online)")
                 await bot.change_presence(status=discord.Status.online, activity=activity)
         else:
-            activity = discord.Activity(
-                type=discord.ActivityType.watching,
-                name="Server is Offline 🔴"
-            )
+            activity = discord.Game(name="Server Offline 🔴")
             await bot.change_presence(status=discord.Status.dnd, activity=activity)
     except Exception as e:
-        print(f"Presence error: {e}")
+        print(f"Presence update error: {e}")
+
 
 
 
