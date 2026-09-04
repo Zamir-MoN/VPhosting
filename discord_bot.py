@@ -6,6 +6,7 @@ import subprocess
 import shutil
 import json
 import re
+import urllib.request
 from typing import Optional
 
 try:
@@ -21,6 +22,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MC_DIR = os.path.join(BASE_DIR, "mc_server")
 LOG_PATH = os.path.join(MC_DIR, "logs", "latest.log")
 ENV_FILE = os.path.join(BASE_DIR, ".env")
+PANEL_API_URL = "http://127.0.0.1:8090/api"
 
 # ==========================================
 # CONFIGURATION
@@ -51,343 +53,181 @@ MC_PROCESS = None
 active_panel_messages = {}
 
 # ==========================================
-# SERVER CONTROLLER HELPER FUNCTIONS
+# UNIFIED POWER ACTIONS (Using Valqore Web Panel API + Native Fallback)
 # ==========================================
-def get_mc_processes():
-    global MC_PROCESS
-    found_procs = []
-    if MC_PROCESS and MC_PROCESS.poll() is None:
-        try:
-            parent = psutil.Process(MC_PROCESS.pid)
-            found_procs.append(parent)
-            found_procs.extend(parent.children(recursive=True))
-        except Exception:
-            pass
-
-    if psutil:
-        try:
-            current_pid = os.getpid()
-            mc_dir_clean = os.path.abspath(MC_DIR).lower()
-            for p in psutil.process_iter(['pid', 'name', 'cmdline', 'cwd']):
-                try:
-                    if p.pid == current_pid:
-                        continue
-                    cmdline = p.info.get('cmdline') or []
-                    cmd_str = " ".join(cmdline).lower()
-                    cwd = (p.info.get('cwd') or "").lower()
-                    name = (p.info.get('name') or "").lower()
-                    
-                    if "server.jar" in cmd_str or ("java" in name and (mc_dir_clean in cwd or "minecraft" in cmd_str or "paper" in cmd_str or "purpur" in cmd_str or "fabric" in cmd_str or "forge" in cmd_str)):
-                        if p.pid not in [x.pid for x in found_procs]:
-                            found_procs.append(p)
-                            found_procs.extend([c for c in p.children(recursive=True) if c.pid not in [x.pid for x in found_procs]])
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                    continue
-        except Exception:
-            pass
-    return found_procs
-
-def is_server_running() -> bool:
-    global MC_PROCESS
-    if shutil.which("tmux"):
-        try:
-            subprocess.check_output(["tmux", "has-session", "-t", "mc_server"], stderr=subprocess.STDOUT)
-            return True
-        except:
-            pass
-    if MC_PROCESS and MC_PROCESS.poll() is None:
-        return True
-    procs = get_mc_processes()
-    return len(procs) > 0
+def call_api(endpoint: str, method="POST", data=None):
+    """Communicates directly with the Valqore FastAPI backend for 100% synchronized execution."""
+    try:
+        url = f"{PANEL_API_URL}/{endpoint.lstrip('/')}"
+        req_data = json.dumps(data).encode('utf-8') if data else None
+        headers = {"Content-Type": "application/json"} if req_data else {}
+        req = urllib.request.Request(url, data=req_data, headers=headers, method=method)
+        with urllib.request.urlopen(req, timeout=5) as response:
+            res_body = response.read().decode('utf-8')
+            return json.loads(res_body)
+    except Exception as e:
+        return None
 
 def start_mc_server():
-    global MC_PROCESS
+    # 1. Try FastAPI endpoint first
+    res = call_api("start", method="POST")
+    if res and res.get("status") == "success":
+        return True, "🚀 Server boot initiated!"
+    elif res and res.get("status") == "error":
+        return False, res.get("message", "Failed to start")
+
+    # 2. Native start fallback
     if is_server_running():
         return False, "Minecraft server is already running!"
 
     start_script = os.path.join(MC_DIR, "start.sh")
     server_jar = os.path.join(MC_DIR, "server.jar")
-
-    if not os.path.exists(start_script) and os.path.exists(server_jar):
-        optimized_sh = """#!/bin/bash
-java -Xms10240M -Xmx10240M \\
-  --add-modules=jdk.incubator.vector \\
-  -Djava.net.preferIPv4Stack=true \\
-  -XX:+UseG1GC \\
-  -XX:+ParallelRefProcEnabled \\
-  -XX:MaxGCPauseMillis=200 \\
-  -XX:+UnlockExperimentalVMOptions \\
-  -XX:+DisableExplicitGC \\
-  -XX:+AlwaysPreTouch \\
-  -XX:G1NewSizePercent=30 \\
-  -XX:G1MaxNewSizePercent=40 \\
-  -XX:G1ReservePercent=20 \\
-  -XX:G1HeapWastePercent=5 \\
-  -XX:G1MixedGCCountTarget=4 \\
-  -XX:InitiatingHeapOccupancyPercent=15 \\
-  -XX:G1MixedGCLiveThresholdPercent=90 \\
-  -XX:G1RSetUpdatingPauseTimePercent=5 \\
-  -XX:SurvivorRatio=32 \\
-  -XX:+PerfDisableSharedMem \\
-  -XX:MaxTenuringThreshold=1 \\
-  -Dusing.aikars.flags=https://mcflags.emc.gs \\
-  -Daikars.new.flags=true \\
-  -jar server.jar nogui
-"""
-        with open(start_script, "w") as f:
-            f.write(optimized_sh)
-        os.chmod(start_script, 0o755)
-
     if not os.path.exists(start_script) and not os.path.exists(server_jar):
-        return False, "No server installed! `server.jar` or `start.sh` missing in `mc_server/`."
+        return False, "No server installed! `server.jar` missing."
 
     eula_path = os.path.join(MC_DIR, "eula.txt")
     if not os.path.exists(eula_path):
-        with open(eula_path, "w") as f:
-            f.write("eula=true\n")
-
-    for world_folder in ["world", "world_nether", "world_the_end"]:
-        lock_file = os.path.join(MC_DIR, world_folder, "session.lock")
-        if os.path.exists(lock_file):
-            try: os.remove(lock_file)
-            except: pass
+        with open(eula_path, "w") as f: f.write("eula=true\n")
 
     os.makedirs(os.path.join(MC_DIR, "logs"), exist_ok=True)
     open(LOG_PATH, "w").close()
 
     bash_bin = shutil.which("bash") or "/bin/bash"
-    tmux_bin = shutil.which("tmux") or "/usr/bin/tmux"
     java_bin = shutil.which("java") or "/usr/bin/java"
-
-    if os.path.exists(start_script) and os.path.exists(bash_bin):
-        run_cmd_str = f"{bash_bin} {start_script}"
-        cmd = [bash_bin, start_script]
-    else:
-        run_cmd_str = f"{java_bin} -Xms1G -Xmx2G -jar {server_jar} nogui"
-        cmd = [java_bin, "-Xms1G", "-Xmx2G", "-jar", server_jar, "nogui"]
+    run_cmd_str = f"{bash_bin} {start_script}" if os.path.exists(start_script) else f"{java_bin} -Xms10240M -Xmx10240M -jar {server_jar} nogui"
 
     env = os.environ.copy()
     env["PATH"] = f"/usr/bin:/bin:/usr/local/bin:{env.get('PATH', '')}"
 
     if shutil.which("tmux"):
-        try:
-            subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
-        except:
-            pass
+        try: subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
+        except: pass
         tmux_cmd = f"cd '{MC_DIR}' && {run_cmd_str} 2>&1 | tee -a '{LOG_PATH}'"
         subprocess.Popen(["tmux", "new-session", "-d", "-s", "mc_server", "bash", "-c", tmux_cmd], env=env)
-    else:
-        log_file = open(LOG_PATH, "a", buffering=1)
-        MC_PROCESS = subprocess.Popen(
-            cmd,
-            cwd=MC_DIR,
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.PIPE,
-            env=env
-        )
-
-    return True, "🚀 Minecraft server boot initiated!"
+    return True, "🚀 Boot sequence initiated."
 
 def stop_mc_server():
-    global MC_PROCESS
-    if shutil.which("tmux"):
-        try:
-            subprocess.run(["tmux", "send-keys", "-t", "mc_server", "stop", "ENTER"], stderr=subprocess.DEVNULL)
-        except:
-            pass
-    elif MC_PROCESS and MC_PROCESS.stdin:
-        try:
-            MC_PROCESS.stdin.write(b"stop\n")
-            MC_PROCESS.stdin.flush()
-        except:
-            pass
+    # 1. Try FastAPI endpoint first
+    res = call_api("stop", method="POST")
+    if res and res.get("status") == "success":
+        return True, "🛑 Minecraft server stopped."
 
+    # 2. Native stop fallback
+    if shutil.which("tmux"):
+        try: subprocess.run(["tmux", "send-keys", "-t", "mc_server", "stop", "ENTER"], stderr=subprocess.DEVNULL)
+        except: pass
     time.sleep(2)
-
-    if MC_PROCESS:
-        try:
-            MC_PROCESS.terminate()
-            MC_PROCESS.kill()
-        except:
-            pass
-        MC_PROCESS = None
-
-    if psutil:
-        try:
-            procs = get_mc_processes()
-            for p in procs:
-                try: p.terminate()
-                except: pass
-            time.sleep(0.5)
-            for p in procs:
-                try: p.kill()
-                except: pass
-        except:
-            pass
-
     if shutil.which("tmux"):
-        try:
-            subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
-        except:
-            pass
-
-    for world_folder in ["world", "world_nether", "world_the_end"]:
-        lock_file = os.path.join(MC_DIR, world_folder, "session.lock")
-        if os.path.exists(lock_file):
-            try: os.remove(lock_file)
-            except: pass
-
+        try: subprocess.run(["tmux", "kill-session", "-t", "mc_server"], stderr=subprocess.DEVNULL)
+        except: pass
     return True, "🛑 Minecraft server stopped."
 
 def send_console_command(cmd: str):
-    if not is_server_running():
-        return False, "Server is offline. Cannot execute command."
+    # 1. Try FastAPI endpoint first
+    res = call_api("command", method="POST", data={"command": cmd})
+    if res and res.get("status") == "success":
+        return True, f"Command sent: `{cmd}`"
 
-    sent = False
+    # 2. Native send-keys fallback
     if shutil.which("tmux"):
         try:
             check = subprocess.run(["tmux", "has-session", "-t", "mc_server"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if check.returncode == 0:
                 subprocess.run(["tmux", "send-keys", "-t", "mc_server", cmd, "ENTER"], check=True)
-                sent = True
-        except:
-            pass
-
-    if not sent and MC_PROCESS and MC_PROCESS.stdin and MC_PROCESS.poll() is None:
-        try:
-            MC_PROCESS.stdin.write(f"{cmd}\n".encode())
-            MC_PROCESS.stdin.flush()
-            sent = True
-        except Exception as e:
-            return False, f"Error: {e}"
-
-    if sent:
-        return True, f"Command sent: `{cmd}`"
+                return True, f"Command sent: `{cmd}`"
+        except: pass
     return False, "Failed to send command to console."
 
 def get_stats_data():
+    # 1. Try FastAPI stats endpoint for 100% exact sync with web dashboard
+    api_stats = call_api("stats", method="GET")
+    if api_stats and isinstance(api_stats, dict):
+        is_running = (api_stats.get("status") == "online")
+        online_p = [p["name"] for p in api_stats.get("online_players", []) if isinstance(p, dict)]
+        return {
+            "running": is_running,
+            "ram_percent": api_stats.get("ram_percent", 0),
+            "ram_used_mb": api_stats.get("ram_used_mb", 0),
+            "ram_allocated_mb": api_stats.get("ram_allocated_mb", 4096),
+            "cpu_percent": api_stats.get("cpu_percent", 0),
+            "disk_percent": api_stats.get("disk_percent", 0),
+            "online_players": online_p,
+            "players_count": len(online_p),
+            "max_players": api_stats.get("max_players", 50)
+        }
+
+    # 2. Local fallback stats
     running = is_server_running()
     ram_percent = 0
     ram_used_mb = 0
-    allocated_ram_mb = 10240
+    allocated_ram_mb = 4096
     cpu_percent = 0
-    cpu_cores = 2
     disk_percent = 0
 
     if psutil:
         try:
-            v_mem = psutil.virtual_memory()
-            ram_total_mb = int(v_mem.total / (1024 * 1024))
-            cpu_cores = psutil.cpu_count(logical=True) or 2
             disk_percent = int(psutil.disk_usage('/').percent)
-
-            mc_procs = get_mc_processes() if running else []
-            total_cpu_val = 0.0
-
-            start_sh = os.path.join(MC_DIR, "start.sh")
-            if os.path.exists(start_sh):
-                try:
-                    with open(start_sh, "r", encoding="utf-8", errors="ignore") as f:
-                        m = re.search(r"-Xmx(\d+)([MGmg])", f.read())
-                        if m:
-                            val = int(m.group(1))
-                            unit = m.group(2).upper()
-                            allocated_ram_mb = val * 1024 if unit == "G" else val
-                except:
-                    pass
-
-            if mc_procs:
-                for p in mc_procs:
+            procs = get_mc_processes() if running else []
+            if procs:
+                for p in procs:
                     try:
                         ram_used_mb += int(p.memory_info().rss / (1024 * 1024))
                         p_cpu = p.cpu_percent(interval=None)
-                        if p_cpu and p_cpu > 0:
-                            total_cpu_val += p_cpu
-                    except:
-                        continue
-                target_ram = allocated_ram_mb if allocated_ram_mb > 0 else ram_total_mb
-                ram_percent = max(0, min(100, int((ram_used_mb / max(1, target_ram)) * 100)))
-                cpu_percent = max(0, min(100, int(total_cpu_val / max(1, cpu_cores))))
-                if ram_used_mb > 50 and ram_percent == 0:
-                    ram_percent = 1
-        except:
-            pass
-
-    online_players = []
-    if running and os.path.exists(LOG_PATH):
-        try:
-            with open(LOG_PATH, "r", encoding="utf-8", errors="ignore") as f:
-                lines = f.readlines()
-            active_set = set()
-            for line in lines[-500:]:
-                clean = line.strip()
-                if "joined the game" in clean:
-                    u = clean.split("joined the game")[0].split("]:")[-1].strip()
-                    if u and not u.startswith("/") and len(u.split()) == 1:
-                        active_set.add(u)
-                elif "logged in with entity id" in clean:
-                    p = clean.split("]:")[-1].strip().split("[")[0].strip()
-                    if p and len(p.split()) == 1 and not p.startswith("/"):
-                        active_set.add(p)
-                elif "left the game" in clean:
-                    u = clean.split("left the game")[0].split("]:")[-1].strip()
-                    if u in active_set: active_set.remove(u)
-                elif "lost connection:" in clean or "lost connection" in clean:
-                    u = clean.split("lost connection")[0].split("]:")[-1].strip()
-                    if u in active_set: active_set.remove(u)
-                elif "players online:" in clean:
-                    n_part = clean.split("players online:")[-1].strip()
-                    if n_part:
-                        for n in n_part.split(','):
-                            cn = n.strip()
-                            if cn: active_set.add(cn)
-            online_players = list(active_set)
-        except:
-            pass
-
-    max_players = 50
-    props = os.path.join(MC_DIR, "server.properties")
-    if os.path.exists(props):
-        try:
-            with open(props, "r", encoding="utf-8", errors="ignore") as f:
-                for line in f:
-                    if line.startswith("max-players="):
-                        max_players = int(line.split("=")[1].strip())
-        except:
-            pass
+                        if p_cpu: cpu_percent += p_cpu
+                    except: pass
+                ram_percent = min(100, int((ram_used_mb / max(1, allocated_ram_mb)) * 100))
+        except: pass
 
     return {
         "running": running,
         "ram_percent": ram_percent,
         "ram_used_mb": ram_used_mb,
         "ram_allocated_mb": allocated_ram_mb,
-        "cpu_percent": cpu_percent,
+        "cpu_percent": int(cpu_percent),
         "disk_percent": disk_percent,
-        "online_players": online_players,
-        "players_count": len(online_players),
-        "max_players": max_players
+        "online_players": [],
+        "players_count": 0,
+        "max_players": 50
     }
+
+def get_mc_processes():
+    global MC_PROCESS
+    found_procs = []
+    if psutil:
+        try:
+            current_pid = os.getpid()
+            for p in psutil.process_iter(['pid', 'name', 'cmdline', 'cwd']):
+                try:
+                    if p.pid == current_pid: continue
+                    cmdline = p.info.get('cmdline') or []
+                    cmd_str = " ".join(cmdline).lower()
+                    if "server.jar" in cmd_str or ("java" in (p.info.get('name') or "").lower() and "nogui" in cmd_str):
+                        found_procs.append(p)
+                except: pass
+        except: pass
+    return found_procs
+
+def is_server_running() -> bool:
+    if shutil.which("tmux"):
+        try:
+            subprocess.check_output(["tmux", "has-session", "-t", "mc_server"], stderr=subprocess.STDOUT)
+            return True
+        except: pass
+    return len(get_mc_processes()) > 0
 
 def get_latest_logs(lines_count=20) -> str:
     if os.path.exists(LOG_PATH):
         try:
             with open(LOG_PATH, "r", encoding="utf-8", errors="ignore") as f:
                 lines = f.readlines()
-                if lines:
-                    return "".join(lines[-lines_count:])
-        except:
-            pass
-
+                if lines: return "".join(lines[-lines_count:])
+        except: pass
     tmux_bin = shutil.which("tmux")
     if tmux_bin:
         try:
             out = subprocess.check_output([tmux_bin, "capture-pane", "-pt", "mc_server", "-S", f"-{lines_count}"], stderr=subprocess.DEVNULL).decode('utf-8', errors='ignore')
-            if out.strip():
-                return out
-        except:
-            pass
-
+            if out.strip(): return out
+        except: pass
     return "No logs available or server is offline."
 
 def is_admin(interaction_or_ctx):
@@ -399,7 +239,6 @@ def is_admin(interaction_or_ctx):
     if not ADMIN_USER_IDS and not hasattr(user, "guild_permissions"):
         return True
     return False
-
 
 def build_status_embed(custom_status: str = None, custom_color: discord.Color = None, progress_bar: str = None) -> discord.Embed:
     stats = get_stats_data()
@@ -414,7 +253,7 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     desc = f"**Server Status:** {status_text}"
     if progress_bar:
         desc += f"\n{progress_bar}"
-    desc += "\n*(Live auto-refresh active)*"
+    desc += "\n*(Live real-time sync active)*"
 
     embed = discord.Embed(
         title="⚡ Valqore Minecraft Control Center",
@@ -433,7 +272,7 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     return embed
 
 # ==========================================
-# INTERACTIVE CONTROL PANEL VIEW (BUTTONS)
+# REAL PROGRESS-TRACKED CONTROL PANEL VIEW
 # ==========================================
 class ServerControlView(discord.ui.View):
     def __init__(self):
@@ -444,42 +283,51 @@ class ServerControlView(discord.ui.View):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ You do not have permission to manage this server.", ephemeral=True)
         
-        # Frame 1: Initiating boot sequence animation
+        # Frame 1: Starting trigger
         anim_embed = build_status_embed(
             custom_status="🟡 **Starting Server...** ⏳",
             custom_color=discord.Color.yellow(),
-            progress_bar="`[▰▰▱▱▱▱▱▱▱▱] 20% Preparing environment...`"
+            progress_bar="`[▰▰▱▱▱▱▱▱▱▱] 20% Initializing boot sequence...`"
         )
         await interaction.response.edit_message(embed=anim_embed, view=self)
         
-        ok, msg = start_mc_server()
-        await asyncio.sleep(1.2)
+        start_mc_server()
 
-        # Frame 2: Allocating RAM & starting Java
-        anim_embed2 = build_status_embed(
-            custom_status="🟡 **Loading Minecraft Engine...** 🚀",
-            custom_color=discord.Color.gold(),
-            progress_bar="`[▰▰▰▰▰▰▱▱▱▱] 60% Spawning Java process...`"
-        )
-        try:
-            await interaction.message.edit(embed=anim_embed2, view=self)
-        except Exception:
-            pass
-        
-        await asyncio.sleep(1.2)
+        # Frame 2: Real verification loop (polls up to 15 seconds until actually online)
+        for i in range(1, 6):
+            await asyncio.sleep(2.0)
+            stats = get_stats_data()
+            if stats["running"]:
+                anim_embed = build_status_embed(
+                    custom_status="🟢 **Server Online & Active!** 🚀",
+                    custom_color=discord.Color.green(),
+                    progress_bar="`[▰▰▰▰▰▰▰▰▰▰] 100% Process running smoothly.`"
+                )
+                try: await interaction.message.edit(embed=anim_embed, view=self)
+                except: pass
+                await asyncio.sleep(1.5)
+                break
+            else:
+                pct = min(90, 20 + i * 15)
+                fill = "▰" * (pct // 10)
+                empty = "▱" * (10 - (pct // 10))
+                anim_embed = build_status_embed(
+                    custom_status="🟡 **Spawning Java Engine...** ⏳",
+                    custom_color=discord.Color.gold(),
+                    progress_bar=f"`[{fill}{empty}] {pct}% Booting world & plugins...`"
+                )
+                try: await interaction.message.edit(embed=anim_embed, view=self)
+                except: pass
 
-        # Frame 3: Final live update
-        try:
-            await interaction.message.edit(embed=build_status_embed(), view=self)
-        except Exception:
-            pass
+        try: await interaction.message.edit(embed=build_status_embed(), view=self)
+        except: pass
 
     @discord.ui.button(label="Stop", style=discord.ButtonStyle.danger, emoji="⏹️", custom_id="mc_btn_stop")
     async def btn_stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ You do not have permission to manage this server.", ephemeral=True)
         
-        # Frame 1: Saving world animation
+        # Frame 1: Stopping trigger
         anim_embed = build_status_embed(
             custom_status="🟠 **Saving World & Stopping...** 💾",
             custom_color=discord.Color.orange(),
@@ -488,98 +336,89 @@ class ServerControlView(discord.ui.View):
         await interaction.response.edit_message(embed=anim_embed, view=self)
         
         stop_mc_server()
-        await asyncio.sleep(1.2)
 
-        # Frame 2: Flushing memory & clean termination
-        anim_embed2 = build_status_embed(
-            custom_status="🔴 **Shutting Down...** 🛑",
-            custom_color=discord.Color.dark_red(),
-            progress_bar="`[▰▰▰▰▰▰▰▰▰▰] 100% Server stopped safely.`"
-        )
-        try:
-            await interaction.message.edit(embed=anim_embed2, view=self)
-        except Exception:
-            pass
+        # Real shutdown verification loop
+        for i in range(1, 5):
+            await asyncio.sleep(1.5)
+            stats = get_stats_data()
+            if not stats["running"]:
+                anim_embed = build_status_embed(
+                    custom_status="🔴 **Server Stopped Safely.** 🛑",
+                    custom_color=discord.Color.dark_red(),
+                    progress_bar="`[▰▰▰▰▰▰▰▰▰▰] 100% Stopped cleanly.`"
+                )
+                try: await interaction.message.edit(embed=anim_embed, view=self)
+                except: pass
+                await asyncio.sleep(1.5)
+                break
 
-        await asyncio.sleep(1.0)
-        try:
-            await interaction.message.edit(embed=build_status_embed(), view=self)
-        except Exception:
-            pass
+        try: await interaction.message.edit(embed=build_status_embed(), view=self)
+        except: pass
 
     @discord.ui.button(label="Restart", style=discord.ButtonStyle.primary, emoji="🔄", custom_id="mc_btn_restart")
     async def btn_restart(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ You do not have permission to manage this server.", ephemeral=True)
         
-        # Step 1: Stopping animation
+        # Step 1: Stop
         anim_embed = build_status_embed(
-            custom_status="🟠 **Restart Step 1/2: Stopping...** 🛑",
+            custom_status="🟠 **Restart 1/2: Saving & Stopping...** 🛑",
             custom_color=discord.Color.orange(),
-            progress_bar="`[▰▰▰▰▱▱▱▱▱▱] 40% Saving and killing old instance...`"
+            progress_bar="`[▰▰▰▰▱▱▱▱▱▱] 40% Saving world and shutting down...`"
         )
         await interaction.response.edit_message(embed=anim_embed, view=self)
-        
         stop_mc_server()
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(2.5)
 
-        # Step 2: Booting animation
-        anim_embed2 = build_status_embed(
-            custom_status="🟡 **Restart Step 2/2: Rebooting Engine...** ⚡",
+        # Step 2: Start
+        anim_embed = build_status_embed(
+            custom_status="🟡 **Restart 2/2: Rebooting Engine...** ⚡",
             custom_color=discord.Color.yellow(),
-            progress_bar="`[▰▰▰▰▰▰▰▰▱▱] 80% Initializing new JVM session...`"
+            progress_bar="`[▰▰▰▰▰▰▰▰▱▱] 80% Initializing clean JVM session...`"
         )
-        try:
-            await interaction.message.edit(embed=anim_embed2, view=self)
-        except Exception:
-            pass
-
+        try: await interaction.message.edit(embed=anim_embed, view=self)
+        except: pass
         start_mc_server()
-        await asyncio.sleep(1.5)
 
-        # Step 3: Finished
-        try:
-            await interaction.message.edit(embed=build_status_embed(), view=self)
-        except Exception:
-            pass
+        # Step 3: Verify boot
+        for _ in range(5):
+            await asyncio.sleep(2.0)
+            stats = get_stats_data()
+            if stats["running"]:
+                break
+
+        try: await interaction.message.edit(embed=build_status_embed(), view=self)
+        except: pass
 
     @discord.ui.button(label="Refresh", style=discord.ButtonStyle.secondary, emoji="🔃", custom_id="mc_btn_refresh")
     async def btn_refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Frame 1: Quick pulse animation
         pulse_embed = build_status_embed(
             custom_status="🔄 **Fetching Latest Stats...**",
             custom_color=discord.Color.blurple()
         )
         await interaction.response.edit_message(embed=pulse_embed, view=self)
         await asyncio.sleep(0.4)
-        try:
-            await interaction.message.edit(embed=build_status_embed(), view=self)
-        except Exception:
-            pass
+        try: await interaction.message.edit(embed=build_status_embed(), view=self)
+        except: pass
 
     @discord.ui.button(label="Live Logs", style=discord.ButtonStyle.secondary, emoji="📜", custom_id="mc_btn_logs")
     async def btn_logs(self, interaction: discord.Interaction, button: discord.ui.Button):
         logs = get_latest_logs(15)
-        if len(logs) > 1900:
-            logs = logs[-1900:]
+        if len(logs) > 1900: logs = logs[-1900:]
         await interaction.response.send_message(f"**📜 Recent Console Logs:**\n```ansi\n{logs}\n```", ephemeral=True)
 
 # ==========================================
-# BOT EVENTS & AUTO REFRESH LOOP
+# BOT EVENTS & SILENT AUTO REFRESH LOOP
 # ==========================================
 @bot.event
 async def on_ready():
     print(f"🤖 Bot Logged in as {bot.user.name} ({bot.user.id})")
-    
-    # Clean up any duplicate guild-specific commands so only single global commands exist
     for guild in bot.guilds:
         try:
             bot.tree.clear_commands(guild=guild)
             await bot.tree.sync(guild=guild)
-        except Exception:
-            pass
+        except: pass
             
-    # Sync single global slash commands
     try:
         synced = await bot.tree.sync()
         print(f"✅ Synced {len(synced)} global slash commands cleanly.")
@@ -592,27 +431,20 @@ async def on_ready():
     if not auto_refresh_panels.is_running():
         auto_refresh_panels.start()
 
-
 @tasks.loop(seconds=5)
 async def auto_refresh_panels():
-    """Silently auto-refreshes all active Discord panel cards in real-time."""
     if not active_panel_messages:
         return
-    
     try:
         embed = build_status_embed()
         dead_keys = []
         for key, msg in list(active_panel_messages.items()):
-            try:
-                await msg.edit(embed=embed)
-            except discord.NotFound:
-                dead_keys.append(key)
-            except Exception:
-                pass
+            try: await msg.edit(embed=embed)
+            except discord.NotFound: dead_keys.append(key)
+            except: pass
         for k in dead_keys:
             active_panel_messages.pop(k, None)
-    except Exception:
-        pass
+    except: pass
 
 @tasks.loop(seconds=20)
 async def update_presence():
@@ -630,8 +462,7 @@ async def update_presence():
                 name="Server is Offline 🔴"
             )
             await bot.change_presence(status=discord.Status.dnd, activity=activity)
-    except:
-        pass
+    except: pass
 
 # ==========================================
 # SLASH & PREFIX COMMANDS
@@ -809,14 +640,6 @@ async def p_console(ctx, lines: int = 20):
     if len(logs) > 1900:
         logs = logs[-1900:]
     await ctx.send(f"**📜 Console Output (Last {log_count} lines):**\n```\n{logs}\n```")
-
-@bot.command(name="sync")
-async def p_sync(ctx):
-    if not is_admin(ctx):
-        return await ctx.send("❌ Admin permissions required.")
-    bot.tree.copy_global_to(guild=ctx.guild)
-    await bot.tree.sync(guild=ctx.guild)
-    await ctx.send("✅ Slash commands successfully synced to this server!")
 
 if __name__ == "__main__":
     if BOT_TOKEN == "YOUR_BOT_TOKEN_HERE" or not BOT_TOKEN:
