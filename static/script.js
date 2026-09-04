@@ -1496,4 +1496,106 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
+    // Automatically load Discord pairing code if settings opened
+    fetchDiscordAuthCode();
 });
+
+// --- Discord Bot 6-Digit Code & Approved Guilds Management ---
+let authCodeCountdownInterval = null;
+
+async function fetchDiscordAuthCode() {
+    try {
+        const res = await fetch('/api/bot/auth/code');
+        const data = await res.json();
+        
+        const codeEl = document.getElementById('discord-pairing-code');
+        const timerEl = document.getElementById('discord-code-timer');
+        if (codeEl) codeEl.innerText = data.code || '------';
+        
+        // Render timer
+        let remaining = data.expires_in || 0;
+        if (authCodeCountdownInterval) clearInterval(authCodeCountdownInterval);
+        
+        const updateTimerText = () => {
+            if (remaining <= 0) {
+                if (timerEl) timerEl.innerText = "Code expired! Click Refresh.";
+                clearInterval(authCodeCountdownInterval);
+            } else {
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                if (timerEl) timerEl.innerText = `Expires in: ${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+                remaining--;
+            }
+        };
+        updateTimerText();
+        authCodeCountdownInterval = setInterval(updateTimerText, 1000);
+
+        // Render Approved Guilds Table
+        renderApprovedGuilds(data.approved_guilds || {});
+    } catch (err) {
+        console.error("Failed to load Discord auth code:", err);
+    }
+}
+
+function renderApprovedGuilds(guilds) {
+    const container = document.getElementById('approved-guilds-list');
+    const countEl = document.getElementById('approved-guilds-count');
+    if (!container) return;
+
+    const guildKeys = Object.keys(guilds);
+    if (countEl) countEl.innerText = `${guildKeys.length} Authorized`;
+
+    if (guildKeys.length === 0) {
+        container.innerHTML = `<div style="color: #9E9EA8; font-size: 0.82rem; padding: 10px 0; text-align: center;">No Discord servers approved yet. Use <code>/setupmc</code> to link your Discord guild.</div>`;
+        return;
+    }
+
+    let html = `
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+    `;
+
+    guildKeys.forEach(gId => {
+        const g = guilds[gId];
+        html += `
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04); flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <div style="font-weight: 700; color: #fff; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="shield-check" style="color: #55ff00; width: 16px; height: 16px;"></i> ${g.guild_name}
+                    </div>
+                    <div style="font-size: 0.78rem; color: #9E9EA8; margin-top: 4px; display: flex; gap: 15px; flex-wrap: wrap;">
+                        <span>Channel: <b style="color:#fff;">#${g.channel_name || g.channel_id}</b></span>
+                        <span>Authorized Role: <b style="color:#fff;">@${g.role_name || g.role_id}</b></span>
+                        <span>Approved By: <b style="color:#fff;">${g.approved_by || 'Admin'}</b></span>
+                    </div>
+                </div>
+                <button class="action-btn stop" onclick="revokeApprovedGuild('${g.guild_id}')" style="padding: 6px 14px; font-size: 0.78rem;">
+                    <i data-lucide="trash-2" style="width:14px;height:14px;"></i> Revoke Access
+                </button>
+            </div>
+        `;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function revokeApprovedGuild(guildId) {
+    if (!confirm("Are you sure you want to revoke bot access for this Discord server?")) return;
+    try {
+        const res = await fetch('/api/bot/auth/revoke', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ guild_id: guildId })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showToast(data.message, 'success');
+            fetchDiscordAuthCode();
+        } else {
+            showToast(data.message, 'error');
+        }
+    } catch (e) {
+        showToast("Error revoking access.", "error");
+    }
+}

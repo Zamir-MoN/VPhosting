@@ -1441,6 +1441,99 @@ fi
         return {"status": "success", "message": f"{software.capitalize()} {version} installed successfully!"}
     except Exception as e: return {"status": "error", "message": f"Installation failed: {str(e)}"}
 
+# ==========================================
+# DISCORD BOT 6-DIGIT AUTHENTICATION & APPROVED SERVERS
+# ==========================================
+BOT_CONFIG_FILE = os.path.abspath("bot_config.json")
+CURRENT_AUTH_CODE = None
+AUTH_CODE_EXPIRY = 0
+
+def load_bot_config():
+    if os.path.exists(BOT_CONFIG_FILE):
+        try:
+            with open(BOT_CONFIG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return {"approved_guilds": {}}
+
+def save_bot_config(config):
+    try:
+        with open(BOT_CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+    except:
+        pass
+
+@app.get("/api/bot/auth/code")
+def get_or_create_auth_code():
+    global CURRENT_AUTH_CODE, AUTH_CODE_EXPIRY
+    now = time.time()
+    # If code expired or missing, generate a new 6-digit code (valid for 15 minutes)
+    if not CURRENT_AUTH_CODE or now > AUTH_CODE_EXPIRY:
+        CURRENT_AUTH_CODE = f"{random.randint(100000, 999999)}"
+        AUTH_CODE_EXPIRY = now + (15 * 60)
+    
+    cfg = load_bot_config()
+    return {
+        "code": CURRENT_AUTH_CODE,
+        "expires_in": max(0, int(AUTH_CODE_EXPIRY - now)),
+        "approved_guilds": cfg.get("approved_guilds", {})
+    }
+
+@app.post("/api/bot/auth/verify")
+async def verify_bot_auth(request: Request):
+    global CURRENT_AUTH_CODE, AUTH_CODE_EXPIRY
+    data = await request.json()
+    code = str(data.get("code", "")).strip()
+    guild_id = str(data.get("guild_id", "")).strip()
+    guild_name = str(data.get("guild_name", "Discord Server")).strip()
+    channel_id = str(data.get("channel_id", "")).strip()
+    channel_name = str(data.get("channel_name", "")).strip()
+    role_id = str(data.get("role_id", "")).strip()
+    role_name = str(data.get("role_name", "")).strip()
+    admin_user = str(data.get("admin_user", "Admin")).strip()
+
+    now = time.time()
+    if not CURRENT_AUTH_CODE or now > AUTH_CODE_EXPIRY:
+        return {"status": "error", "message": "The verification code has expired. Please refresh your Web Panel Settings for a new 6-digit code."}
+    
+    if code != CURRENT_AUTH_CODE:
+        return {"status": "error", "message": "Invalid 6-digit verification code. Please check your Web Panel under Settings > Approved Servers."}
+
+    cfg = load_bot_config()
+    cfg["approved_guilds"][guild_id] = {
+        "guild_id": guild_id,
+        "guild_name": guild_name,
+        "channel_id": channel_id,
+        "channel_name": channel_name,
+        "role_id": role_id,
+        "role_name": role_name,
+        "approved_by": admin_user,
+        "approved_at": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+    save_bot_config(cfg)
+    
+    # Generate new code after successful link
+    CURRENT_AUTH_CODE = f"{random.randint(100000, 999999)}"
+    AUTH_CODE_EXPIRY = now + (15 * 60)
+
+    return {"status": "success", "message": f"Successfully verified and authorized {guild_name}!"}
+
+@app.get("/api/bot/auth/config")
+def get_bot_config():
+    return load_bot_config()
+
+@app.post("/api/bot/auth/revoke")
+async def revoke_guild(request: Request):
+    data = await request.json()
+    guild_id = str(data.get("guild_id", "")).strip()
+    cfg = load_bot_config()
+    if guild_id in cfg.get("approved_guilds", {}):
+        del cfg["approved_guilds"][guild_id]
+        save_bot_config(cfg)
+        return {"status": "success", "message": "Server authorization revoked."}
+    return {"status": "error", "message": "Server not found."}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8090)

@@ -296,14 +296,65 @@ def get_latest_logs(lines_count=20) -> str:
         except: pass
     return "No logs available or server is offline."
 
+# ==========================================
+# SERVER SECURITY & AUTHORIZATION SYSTEM
+# ==========================================
+def get_auth_config():
+    """Fetches the authorized guilds and permission rules from local config or FastAPI backend."""
+    cfg = call_api("bot/auth/config", method="GET")
+    if cfg and isinstance(cfg, dict):
+        return cfg
+    
+    # Fallback to local bot_config.json
+    local_cfg_file = os.path.join(BASE_DIR, "bot_config.json")
+    if os.path.exists(local_cfg_file):
+        try:
+            with open(local_cfg_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except: pass
+    return {"approved_guilds": {}}
+
+def check_guild_authorized(guild_id: str) -> tuple[bool, dict]:
+    """Checks if a Discord Server (Guild) has been approved via the 6-digit code."""
+    cfg = get_auth_config()
+    approved = cfg.get("approved_guilds", {})
+    if str(guild_id) in approved:
+        return True, approved[str(guild_id)]
+    return False, {}
+
 def is_admin(interaction_or_ctx):
+    """
+    Strict Security Check:
+    1. The Guild must be authorized via /setupmc.
+    2. Commands can ONLY be run in the designated Channel.
+    3. The user must hold the designated Role (or be Guild Owner / Administrator).
+    """
     user = interaction_or_ctx.user if hasattr(interaction_or_ctx, "user") else interaction_or_ctx.author
-    if ADMIN_USER_IDS and user.id in ADMIN_USER_IDS:
+    guild = interaction_or_ctx.guild if hasattr(interaction_or_ctx, "guild") else None
+    channel = interaction_or_ctx.channel if hasattr(interaction_or_ctx, "channel") else None
+
+    if not guild:
+        return False
+
+    is_auth, guild_rule = check_guild_authorized(str(guild.id))
+    if not is_auth:
+        return False
+
+    # 1. Enforce Designated Channel
+    allowed_channel_id = str(guild_rule.get("channel_id", "")).strip()
+    if allowed_channel_id and channel and str(channel.id) != allowed_channel_id:
+        return False
+
+    # 2. Enforce Designated Role (or Guild Owner / Administrator override)
+    if hasattr(user, "guild_permissions") and (user.guild_permissions.administrator or guild.owner_id == user.id):
         return True
-    if hasattr(user, "guild_permissions") and user.guild_permissions.administrator:
-        return True
-    if not ADMIN_USER_IDS and not hasattr(user, "guild_permissions"):
-        return True
+
+    allowed_role_id = str(guild_rule.get("role_id", "")).strip()
+    if allowed_role_id and hasattr(user, "roles"):
+        user_role_ids = [str(r.id) for r in user.roles]
+        if allowed_role_id in user_role_ids:
+            return True
+
     return False
 
 def make_mini_bar(percent: int, length: int = 8) -> str:
@@ -984,8 +1035,95 @@ async def update_presence():
         pass
 
 # ==========================================
+# /setupmc SETUP & PAIRING COMMAND
+# ==========================================
+@bot.tree.command(name="setupmc", description="Authenticate & pair this Discord server with the Valqore Web Panel using a 6-digit code.")
+@app_commands.describe(
+    channel="The only text channel where Minecraft bot commands & panels are allowed",
+    role="The staff/operator role allowed to use bot commands",
+    code="The 6-digit pairing code from your Web Panel under Settings > Approved Servers"
+)
+async def cmd_setupmc(interaction: discord.Interaction, channel: discord.TextChannel, role: discord.Role, code: str):
+    # Only Discord Server Owner or Admin can run initial setup
+    if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
+        return await interaction.response.send_message("❌ Only Server Administrators or the Server Owner can pair this Discord server.", ephemeral=True)
+    
+    await interaction.response.defer(ephemeral=True)
+    clean_code = code.strip()
+
+    # Call FastAPI backend verification endpoint
+    payload = {
+        "code": clean_code,
+        "guild_id": str(interaction.guild.id),
+        "guild_name": interaction.guild.name,
+        "channel_id": str(channel.id),
+        "channel_name": channel.name,
+        "role_id": str(role.id),
+        "role_name": role.name,
+        "admin_user": f"{interaction.user.name} ({interaction.user.id})"
+    }
+
+    res = call_api("bot/auth/verify", method="POST", data=payload)
+    if not res:
+        # Local verification fallback if web panel API is running on same host
+        local_cfg = get_auth_config()
+        # Fallback error
+        return await interaction.followup.send("❌ Could not connect to Valqore Web Panel backend to verify code. Make sure `valqore.service` is online on port 8090.")
+
+    if res.get("status") == "success":
+        embed = discord.Embed(
+            title="🛡️ VALQORE BOT AUTHENTICATED SUCCESSFULLY!",
+            description=(
+                f"✅ **{interaction.guild.name}** is now linked to your Valqore Minecraft VPS!\n\n"
+                f"📌 **Restricted Channel:** {channel.mention}\n"
+                f"👑 **Authorized Role:** {role.mention}\n"
+                f"🔒 **Security Status:** `Active & Protected`\n\n"
+                f"👉 Go to {channel.mention} and type **`/panel`** to summon your 24/7 Minecraft control center!"
+            ),
+            color=discord.Color.from_rgb(230, 255, 0),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        embed.set_footer(text="⚡ Valqore Security Gateway • Protected VPS Link")
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    else:
+        err_msg = res.get("message", "Invalid 6-digit code.")
+        await interaction.followup.send(f"❌ **Authentication Failed:** {err_msg}", ephemeral=True)
+
+
+# ==========================================
 # SLASH & PREFIX COMMANDS
 # ==========================================
+async def check_command_access(interaction_or_ctx) -> tuple[bool, str]:
+    """Helper to check if command is allowed and provide helpful error reason."""
+    guild = interaction_or_ctx.guild if hasattr(interaction_or_ctx, "guild") else None
+    channel = interaction_or_ctx.channel if hasattr(interaction_or_ctx, "channel") else None
+    user = interaction_or_ctx.user if hasattr(interaction_or_ctx, "user") else interaction_or_ctx.author
+
+    if not guild:
+        return False, "❌ Bot commands can only be used in an approved Discord server."
+
+    is_auth, rule = check_guild_authorized(str(guild.id))
+    if not is_auth:
+        return False, "🔒 **Server Not Authorized!**\nThis bot is linked to a private Minecraft VPS.\nTo authenticate, an Administrator must run `/setupmc` with the 6-digit code found in your **Web Panel > Settings > Approved Servers**."
+
+    allowed_channel_id = str(rule.get("channel_id", "")).strip()
+    if allowed_channel_id and channel and str(channel.id) != allowed_channel_id:
+        return False, f"⚠️ Bot commands are restricted to the designated channel: <#{allowed_channel_id}>"
+
+    # Check role / admin
+    if hasattr(user, "guild_permissions") and (user.guild_permissions.administrator or guild.owner_id == user.id):
+        return True, ""
+
+    allowed_role_id = str(rule.get("role_id", "")).strip()
+    if allowed_role_id and hasattr(user, "roles"):
+        if allowed_role_id in [str(r.id) for r in user.roles]:
+            return True, ""
+        return False, f"⛔ You must have the <@&{allowed_role_id}> role to use Minecraft control commands."
+
+    return False, "❌ Access denied."
+
+
 async def purge_old_panel_messages(channel):
     """Deletes all previous Valqore panel messages in the channel from memory and channel history."""
     # 1. Delete from in-memory tracking
@@ -1019,8 +1157,9 @@ async def purge_old_panel_messages(channel):
 
 @bot.tree.command(name="panel", description="Post the live Minecraft Control Panel (Silently auto-refreshed in real-time).")
 async def cmd_panel(interaction: discord.Interaction):
-    if not is_admin(interaction):
-        return await interaction.response.send_message("❌ You need Admin permissions to post the control panel.", ephemeral=True)
+    ok, err = await check_command_access(interaction)
+    if not ok:
+        return await interaction.response.send_message(err, ephemeral=True)
     await interaction.response.defer()
 
     # Clean up any existing panel messages in the channel
@@ -1035,8 +1174,9 @@ async def cmd_panel(interaction: discord.Interaction):
 
 @bot.command(name="panel")
 async def p_panel(ctx):
-    if not is_admin(ctx):
-        return await ctx.send("❌ Admin permissions required.")
+    ok, err = await check_command_access(ctx)
+    if not ok:
+        return await ctx.send(err)
     
     # Clean up any existing panel messages in the channel
     if ctx.channel:
@@ -1053,16 +1193,25 @@ async def p_panel(ctx):
 
 @bot.tree.command(name="status", description="Check live RAM, CPU, disk usage, and online players.")
 async def cmd_status(interaction: discord.Interaction):
+    ok, err = await check_command_access(interaction)
+    if not ok:
+        return await interaction.response.send_message(err, ephemeral=True)
     embed = build_status_embed()
     await interaction.response.send_message(embed=embed)
 
 @bot.command(name="status")
 async def p_status(ctx):
+    ok, err = await check_command_access(ctx)
+    if not ok:
+        return await ctx.send(err)
     embed = build_status_embed()
     await ctx.send(embed=embed)
 
 @bot.tree.command(name="ping", description="Check Discord Bot latency and server status.")
 async def cmd_ping(interaction: discord.Interaction):
+    ok, err = await check_command_access(interaction)
+    if not ok:
+        return await interaction.response.send_message(err, ephemeral=True)
     latency_ms = round(bot.latency * 1000)
     server_text = "🟢 Online" if is_server_running() else "🔴 Offline"
     embed = discord.Embed(title="🏓 Pong!", color=discord.Color.blue())
@@ -1072,6 +1221,9 @@ async def cmd_ping(interaction: discord.Interaction):
 
 @bot.command(name="ping")
 async def p_ping(ctx):
+    ok, err = await check_command_access(ctx)
+    if not ok:
+        return await ctx.send(err)
     latency_ms = round(bot.latency * 1000)
     server_text = "🟢 Online" if is_server_running() else "🔴 Offline"
     embed = discord.Embed(title="🏓 Pong!", color=discord.Color.blue())
@@ -1081,38 +1233,43 @@ async def p_ping(ctx):
 
 @bot.tree.command(name="start", description="Start the Minecraft Server.")
 async def cmd_start(interaction: discord.Interaction):
-    if not is_admin(interaction):
-        return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+    ok, err = await check_command_access(interaction)
+    if not ok:
+        return await interaction.response.send_message(err, ephemeral=True)
     await interaction.response.defer()
-    ok, msg = start_mc_server()
+    s_ok, msg = start_mc_server()
     await interaction.followup.send(msg)
 
 @bot.command(name="start")
 async def p_start(ctx):
-    if not is_admin(ctx):
-        return await ctx.send("❌ Admin permissions required.")
-    ok, msg = start_mc_server()
+    ok, err = await check_command_access(ctx)
+    if not ok:
+        return await ctx.send(err)
+    s_ok, msg = start_mc_server()
     await ctx.send(msg)
 
 @bot.tree.command(name="stop", description="Stop the Minecraft Server cleanly.")
 async def cmd_stop(interaction: discord.Interaction):
-    if not is_admin(interaction):
-        return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+    ok, err = await check_command_access(interaction)
+    if not ok:
+        return await interaction.response.send_message(err, ephemeral=True)
     await interaction.response.defer()
-    ok, msg = stop_mc_server()
+    s_ok, msg = stop_mc_server()
     await interaction.followup.send(msg)
 
 @bot.command(name="stop")
 async def p_stop(ctx):
-    if not is_admin(ctx):
-        return await ctx.send("❌ Admin permissions required.")
-    ok, msg = stop_mc_server()
+    ok, err = await check_command_access(ctx)
+    if not ok:
+        return await ctx.send(err)
+    s_ok, msg = stop_mc_server()
     await ctx.send(msg)
 
 @bot.tree.command(name="restart", description="Restart the Minecraft Server.")
 async def cmd_restart(interaction: discord.Interaction):
-    if not is_admin(interaction):
-        return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+    ok, err = await check_command_access(interaction)
+    if not ok:
+        return await interaction.response.send_message(err, ephemeral=True)
     await interaction.response.defer()
     stop_mc_server()
     await asyncio.sleep(2)
@@ -1121,8 +1278,9 @@ async def cmd_restart(interaction: discord.Interaction):
 
 @bot.command(name="restart")
 async def p_restart(ctx):
-    if not is_admin(ctx):
-        return await ctx.send("❌ Admin permissions required.")
+    ok, err = await check_command_access(ctx)
+    if not ok:
+        return await ctx.send(err)
     stop_mc_server()
     await asyncio.sleep(2)
     start_mc_server()
@@ -1131,30 +1289,35 @@ async def p_restart(ctx):
 @bot.tree.command(name="cmd", description="Execute any command on the Minecraft Server console (e.g. op, ban, gamemode).")
 @app_commands.describe(command="The Minecraft command to run (without leading slash)")
 async def cmd_console(interaction: discord.Interaction, command: str):
-    if not is_admin(interaction):
-        return await interaction.response.send_message("❌ Admin permissions required to run console commands.", ephemeral=True)
+    ok, err = await check_command_access(interaction)
+    if not ok:
+        return await interaction.response.send_message(err, ephemeral=True)
     clean_cmd = command.strip().lstrip("/")
-    ok, msg = send_console_command(clean_cmd)
-    if ok:
+    s_ok, msg = send_console_command(clean_cmd)
+    if s_ok:
         await interaction.response.send_message(f"💻 **Sent to Console:** `{clean_cmd}`\n*Allow 1-2 seconds for execution.*")
     else:
         await interaction.response.send_message(f"❌ {msg}", ephemeral=True)
 
 @bot.command(name="cmd")
 async def p_cmd(ctx, *, command: str = ""):
-    if not is_admin(ctx):
-        return await ctx.send("❌ Admin permissions required.")
+    ok, err = await check_command_access(ctx)
+    if not ok:
+        return await ctx.send(err)
     if not command:
         return await ctx.send("Usage: `!cmd <minecraft command>` (e.g. `!cmd op PlayerName`)")
     clean_cmd = command.strip().lstrip("/")
-    ok, msg = send_console_command(clean_cmd)
-    if ok:
+    s_ok, msg = send_console_command(clean_cmd)
+    if s_ok:
         await ctx.send(f"💻 **Sent to Console:** `{clean_cmd}`")
     else:
         await ctx.send(f"❌ {msg}")
 
 @bot.tree.command(name="players", description="View list of all online players.")
 async def cmd_players(interaction: discord.Interaction):
+    ok, err = await check_command_access(interaction)
+    if not ok:
+        return await interaction.response.send_message(err, ephemeral=True)
     stats = get_stats_data()
     if not stats["running"]:
         return await interaction.response.send_message("🔴 Server is currently offline.")
@@ -1171,6 +1334,9 @@ async def cmd_players(interaction: discord.Interaction):
 
 @bot.command(name="players")
 async def p_players(ctx):
+    ok, err = await check_command_access(ctx)
+    if not ok:
+        return await ctx.send(err)
     stats = get_stats_data()
     if not stats["running"]:
         return await ctx.send("🔴 Server is currently offline.")
@@ -1188,8 +1354,9 @@ async def p_players(ctx):
 @bot.tree.command(name="console", description="Get latest live console output logs.")
 @app_commands.describe(lines="Number of log lines to retrieve (default: 20)")
 async def cmd_logs(interaction: discord.Interaction, lines: Optional[int] = 20):
-    if not is_admin(interaction):
-        return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+    ok, err = await check_command_access(interaction)
+    if not ok:
+        return await interaction.response.send_message(err, ephemeral=True)
     log_count = min(max(5, lines or 20), 40)
     logs = get_latest_logs(log_count)
     if len(logs) > 1900:
@@ -1198,8 +1365,9 @@ async def cmd_logs(interaction: discord.Interaction, lines: Optional[int] = 20):
 
 @bot.command(name="console")
 async def p_console(ctx, lines: int = 20):
-    if not is_admin(ctx):
-        return await ctx.send("❌ Admin permissions required.")
+    ok, err = await check_command_access(ctx)
+    if not ok:
+        return await ctx.send(err)
     log_count = min(max(5, lines), 40)
     logs = get_latest_logs(log_count)
     if len(logs) > 1900:

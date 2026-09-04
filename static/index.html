@@ -533,6 +533,48 @@
                             </div>
                         </div>
 
+                        <!-- Approved Discord Servers & Bot Pairing -->
+                        <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px; margin-top: 30px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                                <div>
+                                    <h3 style="color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                                        <i data-lucide="bot" style="color: var(--primary-color); width: 20px; height: 20px;"></i>
+                                        Approved Discord Servers & Security
+                                    </h3>
+                                    <p style="color: #9E9EA8; font-size: 0.82rem; margin: 0;">Authenticate Discord servers with a 6-digit pairing code via <code>/setupmc</code> so only authorized guilds can manage this VPS.</p>
+                                </div>
+                                <button class="action-btn restart" onclick="fetchDiscordAuthCode()" style="padding: 8px 16px; font-size: 0.82rem;">
+                                    <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Refresh 6-Digit Code
+                                </button>
+                            </div>
+
+                            <div style="background: rgba(24,24,30,0.6); padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-bottom: 20px;">
+                                <div>
+                                    <span style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1px; color: #9E9EA8; font-weight: 600;">Active 6-Digit Setup Code</span>
+                                    <div id="discord-pairing-code" style="font-family: 'JetBrains Mono', monospace; font-size: 2.2rem; font-weight: 800; color: #E6FF00; letter-spacing: 6px; margin: 6px 0;">------</div>
+                                    <span id="discord-code-timer" style="font-size: 0.78rem; color: #9E9EA8;">Expires in: 15m 00s</span>
+                                </div>
+                                <div style="background: rgba(0,0,0,0.4); padding: 14px 18px; border-radius: 12px; border-left: 3px solid #E6FF00; max-width: 450px;">
+                                    <div style="font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 4px;">📌 How to pair your Discord Server:</div>
+                                    <div style="font-size: 0.8rem; color: #9E9EA8; line-height: 1.4;">
+                                        In your Discord Server, type: <br>
+                                        <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #E6FF00; font-weight: bold;">/setupmc channel:#control-room role:@Staff code:&lt;6-digit-code&gt;</code>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Approved Servers Table -->
+                            <div style="background: rgba(24,24,30,0.4); border-radius: 14px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden;">
+                                <div style="padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.85rem; font-weight: 600; color: #fff; display: flex; align-items: center; justify-content: space-between;">
+                                    <span>Authorized Guilds List</span>
+                                    <span id="approved-guilds-count" style="font-size: 0.75rem; color: #9E9EA8;">0 Authorized</span>
+                                </div>
+                                <div id="approved-guilds-list" style="padding: 10px 18px;">
+                                    <div style="color: #9E9EA8; font-size: 0.82rem; padding: 10px 0; text-align: center;">No Discord servers approved yet. Use <code>/setupmc</code> to link your Discord guild.</div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px; margin-top: 30px;">
                             <h3 style="color: var(--danger-color); margin-bottom: 10px;">Danger Zone</h3>
                             <p style="color: #9E9EA8; font-size: 0.82rem; margin-bottom: 15px;">Irreversibly delete server jars, configurations, and world data from the VPS container.</p>
