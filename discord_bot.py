@@ -930,22 +930,20 @@ class ServerControlView(discord.ui.View):
 async def on_ready():
     print(f"🤖 Bot Logged in as {bot.user.name} ({bot.user.id})")
     
-    # 1. Sync updated commands directly to each connected guild for INSTANT schema update
+    # 1. Clear out all guild-level command trees to eliminate duplicate listings
     for guild in bot.guilds:
         try:
-            bot.tree.copy_global_to(guild=guild)
-            synced_g = await bot.tree.sync(guild=guild)
-            print(f"⚡ Guild {guild.name}: Synced {len(synced_g)} commands.")
-        except Exception as e:
-            print(f"Notice syncing {guild.name}: {e}")
+            bot.tree.clear_commands(guild=guild)
+            await bot.tree.sync(guild=guild)
+        except Exception:
+            pass
             
-    # 2. Sync global slash commands cleanly
+    # 2. Sync exclusively as global commands (guarantees exactly 1 copy per command)
     try:
         synced = await bot.tree.sync()
-        print(f"✅ Cleanly synced {len(synced)} global slash commands.")
+        print(f"✅ Cleanly synced {len(synced)} unique global slash commands.")
     except Exception as e:
         print(f"Global sync error: {e}")
-
 
     bot.add_view(ServerControlView())
     bot.add_view(MoreOptionsView())
@@ -955,6 +953,7 @@ async def on_ready():
         update_presence.start()
     if not auto_refresh_panels.is_running():
         auto_refresh_panels.start()
+
 
 
 @tasks.loop(seconds=5)
