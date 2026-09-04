@@ -25,28 +25,62 @@ ENV_FILE = os.path.join(BASE_DIR, ".env")
 PANEL_API_URL = "http://127.0.0.1:8090/api"
 
 def get_public_ip():
-    """Fetches the real public VPS IP address with domain fallback."""
+    """Fetches the real public VPS IP address or custom domain."""
     custom_ip = os.getenv("SERVER_IP")
     if custom_ip:
         return custom_ip
 
-    try:
-        with urllib.request.urlopen("https://api.ipify.org", timeout=2) as r:
-            ip = r.read().decode('utf-8').strip()
-            if ip:
-                return f"{ip}:25565"
-    except Exception:
-        pass
+    # Fetch real VPS external IP
+    for service_url in ["https://api.ipify.org", "https://ifconfig.me/ip", "https://checkip.amazonaws.com"]:
+        try:
+            req = urllib.request.Request(service_url, headers={'User-Agent': 'Valqore/1.0'})
+            with urllib.request.urlopen(req, timeout=2) as r:
+                ip = r.read().decode('utf-8').strip()
+                if ip and len(ip.split('.')) == 4:
+                    return f"{ip}:25565"
+        except Exception:
+            pass
 
-    try:
-        with urllib.request.urlopen("https://ifconfig.me/ip", timeout=2) as r:
-            ip = r.read().decode('utf-8').strip()
-            if ip:
-                return f"{ip}:25565"
-    except Exception:
-        pass
+    return "play.valqore.net:25565"
 
-    return "valqore-arcane-smp.indevs.in"
+def get_server_metadata():
+    """Auto-detects Minecraft Server Engine (Paper, Purpur, Fabric, Spigot, Vanilla) and Version."""
+    engine = "PaperMC"
+    version = "1.21"
+    
+    # 1. Scan latest.log for exact version and software banner
+    if os.path.exists(LOG_PATH):
+        try:
+            with open(LOG_PATH, "r", encoding="utf-8", errors="ignore") as f:
+                header_lines = f.readlines()[:100]
+                for line in header_lines:
+                    # e.g. Starting minecraft server version 1.21.1
+                    if "Starting minecraft server version" in line:
+                        v_match = re.search(r"version\s+([0-9\.]+)", line, re.IGNORECASE)
+                        if v_match:
+                            version = v_match.group(1)
+                    # e.g. This server is running Paper version ...
+                    if "This server is running" in line:
+                        if "Purpur" in line: engine = "Purpur"
+                        elif "Paper" in line: engine = "PaperMC"
+                        elif "Fabric" in line: engine = "Fabric"
+                        elif "Forge" in line: engine = "Forge"
+                        elif "Spigot" in line: engine = "Spigot"
+        except Exception:
+            pass
+
+    # 2. Check server.jar or version files
+    version_json = os.path.join(MC_DIR, "version_history.json")
+    if os.path.exists(version_json):
+        try:
+            with open(version_json, "r") as vj:
+                data = json.load(vj)
+                if isinstance(data, dict) and "currentVersion" in data:
+                    version = data["currentVersion"]
+        except: pass
+
+    return {"engine": engine, "version": version}
+
 
 # Load BOT_TOKEN from env or .env file
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -387,6 +421,7 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     if progress_bar:
         desc += f"\n> {progress_bar}\n"
 
+    meta = get_server_metadata()
     embed = discord.Embed(
         title="⚡ VALQORE MINECRAFT ENGINE",
         description=desc,
@@ -394,12 +429,13 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
         timestamp=discord.utils.utcnow()
     )
 
-    # 1. Connection Section
+    # 1. Connection Section & Engine Details
     embed.add_field(
-        name="📡 **CONNECTION ADDRESS**",
-        value=f"```fix\n{server_ip}\n```",
+        name="📡 **SERVER IP & CONNECTION**",
+        value=f"```fix\n{server_ip}\n```\n🧩 **Software:** `{meta['engine']}` • 📌 **Version:** `{meta['version']}`",
         inline=False
     )
+
 
     # 2. Performance & Hardware Metrics
     ram_bar = make_mini_bar(stats['ram_percent'])
