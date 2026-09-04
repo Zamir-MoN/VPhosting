@@ -275,22 +275,23 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     stats = get_stats_data()
     server_ip = get_public_ip()
     
+    # Valqore Signature Brand Cyber Lime Color (#E6FF00)
+    brand_color = discord.Color.from_rgb(230, 255, 0)
+    color = custom_color or brand_color
+
     if custom_status:
         status_text = custom_status
-        color = custom_color or discord.Color.gold()
     else:
         raw_status = stats.get("raw_status", "online" if stats["running"] else "offline")
         if raw_status == "online":
             status_text = "🟢 **ONLINE (READY TO PLAY)**"
-            color = discord.Color.from_rgb(0, 255, 127) # Vibrant Emerald Green
         elif raw_status == "starting":
             status_text = "🟡 **BOOTING (LOADING WORLD & PLUGINS...)** ⏳"
-            color = discord.Color.from_rgb(255, 204, 0) # Gold
         else:
             status_text = "🔴 **OFFLINE**"
-            color = discord.Color.from_rgb(255, 59, 48) # Sleek Red
 
     # Header description block
+
     desc = f"**SERVER STATUS**\n> {status_text}\n"
     if progress_bar:
         desc += f"\n> {progress_bar}\n"
