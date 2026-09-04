@@ -929,17 +929,21 @@ class ServerControlView(discord.ui.View):
 @bot.event
 async def on_ready():
     print(f"🤖 Bot Logged in as {bot.user.name} ({bot.user.id})")
+    
+    # Instant Guild Sync for all connected servers so slash commands appear immediately without Discord cache delay
     for guild in bot.guilds:
         try:
-            bot.tree.clear_commands(guild=guild)
-            await bot.tree.sync(guild=guild)
-        except: pass
+            bot.tree.copy_global_to(guild=guild)
+            synced_g = await bot.tree.sync(guild=guild)
+            print(f"⚡ Instantly synced {len(synced_g)} slash commands to guild: {guild.name} ({guild.id})")
+        except Exception as e:
+            print(f"Guild sync notice for {guild.name}: {e}")
             
     try:
         synced = await bot.tree.sync()
-        print(f"✅ Synced {len(synced)} global slash commands cleanly.")
+        print(f"✅ Synced {len(synced)} global slash commands.")
     except Exception as e:
-        print(f"Sync error: {e}")
+        print(f"Global sync error: {e}")
 
     bot.add_view(ServerControlView())
     bot.add_view(MoreOptionsView())
@@ -949,6 +953,16 @@ async def on_ready():
         update_presence.start()
     if not auto_refresh_panels.is_running():
         auto_refresh_panels.start()
+
+@bot.event
+async def on_guild_join(guild):
+    """When invited to a new server, sync slash commands immediately to that guild."""
+    try:
+        bot.tree.copy_global_to(guild=guild)
+        await bot.tree.sync(guild=guild)
+        print(f"⚡ Instantly synced slash commands to newly joined guild: {guild.name}")
+    except Exception as e:
+        print(f"Error syncing on guild join: {e}")
 
 @tasks.loop(seconds=5)
 async def auto_refresh_panels():
@@ -1035,8 +1049,47 @@ async def update_presence():
         pass
 
 # ==========================================
-# /setupmc SETUP & PAIRING COMMAND
+# /setupmc SETUP & PAIRING COMMAND (SLASH & PREFIX)
 # ==========================================
+async def execute_setup_verification(guild, user, channel, role, code: str):
+    """Core verification logic shared by slash command and prefix command."""
+    clean_code = code.strip().upper()
+
+    payload = {
+        "code": clean_code,
+        "guild_id": str(guild.id),
+        "guild_name": guild.name,
+        "channel_id": str(channel.id),
+        "channel_name": channel.name,
+        "role_id": str(role.id),
+        "role_name": role.name,
+        "admin_user": f"{user.name} ({user.id})"
+    }
+
+    res = call_api("bot/auth/verify", method="POST", data=payload)
+    if not res:
+        return False, "❌ Could not connect to Valqore Web Panel backend to verify code. Make sure your web panel is running on port 8090."
+
+    if res.get("status") == "success":
+        embed = discord.Embed(
+            title="🛡️ VALQORE BOT AUTHENTICATED SUCCESSFULLY!",
+            description=(
+                f"✅ **{guild.name}** is now linked to your Valqore Minecraft VPS!\n\n"
+                f"📌 **Restricted Channel:** {channel.mention}\n"
+                f"👑 **Authorized Role:** {role.mention}\n"
+                f"🔒 **Security Status:** `Active & Protected`\n\n"
+                f"👉 Go to {channel.mention} and type **`/panel`** or **`!panel`** to summon your 24/7 Minecraft control center!"
+            ),
+            color=discord.Color.from_rgb(230, 255, 0),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
+        embed.set_footer(text="⚡ Valqore Security Gateway • Protected VPS Link")
+        return True, embed
+    else:
+        err_msg = res.get("message", "Invalid or expired 6-digit code.")
+        return False, f"❌ **Authentication Failed:** {err_msg}"
+
 @bot.tree.command(name="setupmc", description="Authenticate & pair this Discord server with the Valqore Web Panel using a 6-digit code.")
 @app_commands.describe(
     channel="The only text channel where Minecraft bot commands & panels are allowed",
@@ -1044,51 +1097,45 @@ async def update_presence():
     code="The 6-digit pairing code from your Web Panel under Settings > Approved Servers"
 )
 async def cmd_setupmc(interaction: discord.Interaction, channel: discord.TextChannel, role: discord.Role, code: str):
-    # Only Discord Server Owner or Admin can run initial setup
     if not (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         return await interaction.response.send_message("❌ Only Server Administrators or the Server Owner can pair this Discord server.", ephemeral=True)
     
     await interaction.response.defer(ephemeral=True)
-    clean_code = code.strip()
-
-    # Call FastAPI backend verification endpoint
-    payload = {
-        "code": clean_code,
-        "guild_id": str(interaction.guild.id),
-        "guild_name": interaction.guild.name,
-        "channel_id": str(channel.id),
-        "channel_name": channel.name,
-        "role_id": str(role.id),
-        "role_name": role.name,
-        "admin_user": f"{interaction.user.name} ({interaction.user.id})"
-    }
-
-    res = call_api("bot/auth/verify", method="POST", data=payload)
-    if not res:
-        # Local verification fallback if web panel API is running on same host
-        local_cfg = get_auth_config()
-        # Fallback error
-        return await interaction.followup.send("❌ Could not connect to Valqore Web Panel backend to verify code. Make sure `valqore.service` is online on port 8090.")
-
-    if res.get("status") == "success":
-        embed = discord.Embed(
-            title="🛡️ VALQORE BOT AUTHENTICATED SUCCESSFULLY!",
-            description=(
-                f"✅ **{interaction.guild.name}** is now linked to your Valqore Minecraft VPS!\n\n"
-                f"📌 **Restricted Channel:** {channel.mention}\n"
-                f"👑 **Authorized Role:** {role.mention}\n"
-                f"🔒 **Security Status:** `Active & Protected`\n\n"
-                f"👉 Go to {channel.mention} and type **`/panel`** to summon your 24/7 Minecraft control center!"
-            ),
-            color=discord.Color.from_rgb(230, 255, 0),
-            timestamp=discord.utils.utcnow()
-        )
-        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
-        embed.set_footer(text="⚡ Valqore Security Gateway • Protected VPS Link")
-        await interaction.followup.send(embed=embed, ephemeral=True)
+    success, result = await execute_setup_verification(interaction.guild, interaction.user, channel, role, code)
+    if success:
+        await interaction.followup.send(embed=result, ephemeral=True)
     else:
-        err_msg = res.get("message", "Invalid 6-digit code.")
-        await interaction.followup.send(f"❌ **Authentication Failed:** {err_msg}", ephemeral=True)
+        await interaction.followup.send(result, ephemeral=True)
+
+@bot.command(name="setupmc")
+async def p_setupmc(ctx, channel: discord.TextChannel = None, role: discord.Role = None, code: str = None):
+    """Prefix command fallback: !setupmc #channel @Role 123456"""
+    if not (ctx.author.guild_permissions.administrator or ctx.guild.owner_id == ctx.author.id):
+        return await ctx.send("❌ Only Server Administrators or the Server Owner can pair this Discord server.")
+    
+    if not channel or not role or not code:
+        return await ctx.send(
+            "⚠️ **Incorrect Usage!**\n"
+            "**Format:** `!setupmc #channel @Role 6_DIGIT_CODE`\n"
+            "**Example:** `!setupmc #minecraft-control @Staff 839201`\n"
+            "*Get your 6-digit pairing code in Web Panel > Settings > Approved Discord Servers.*"
+        )
+    
+    # Try deleting the message containing the code for privacy
+    try: await ctx.message.delete()
+    except: pass
+
+    success, result = await execute_setup_verification(ctx.guild, ctx.author, channel, role, code)
+    if success:
+        await ctx.send(embed=result)
+    else:
+        await ctx.send(result)
+
+@bot.command(name="setup")
+async def p_setup_alias(ctx, channel: discord.TextChannel = None, role: discord.Role = None, code: str = None):
+    """Alias for !setupmc"""
+    await p_setupmc(ctx, channel, role, code)
+
 
 
 # ==========================================
