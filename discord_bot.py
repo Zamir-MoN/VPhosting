@@ -887,16 +887,6 @@ class MoreOptionsView(discord.ui.View):
         embed.set_footer(text="⚡ Valqore Live Console • Click Refresh to fetch latest lines", icon_url="https://cdn-icons-png.flaticon.com/512/3208/3208726.png")
         await interaction.response.edit_message(embed=embed, view=LiveConsoleView())
 
-    @discord.ui.button(label="Player Controls", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="mc_btn_opt_players")
-    async def btn_opt_players(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not is_admin(interaction):
-            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
-        if interaction.message and interaction.message.id in active_panel_messages:
-            active_panel_messages[interaction.message.id]["mode"] = "players"
-        view = PlayerManagerView()
-        embed = view.build_player_embed()
-        await interaction.response.edit_message(embed=embed, view=view)
-
     @discord.ui.button(emoji="📥", style=discord.ButtonStyle.success, custom_id="mc_btn_opt_backup")
     async def btn_backup(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
@@ -963,6 +953,16 @@ class MoreOptionsView(discord.ui.View):
                 )
         except Exception as e:
             await interaction.followup.send(f"❌ Backup failed with error: `{str(e)}`", ephemeral=True)
+
+    @discord.ui.button(label="Player Controls", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="mc_btn_opt_players")
+    async def btn_opt_players(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction):
+            return await interaction.response.send_message("❌ Admin permissions required.", ephemeral=True)
+        if interaction.message and interaction.message.id in active_panel_messages:
+            active_panel_messages[interaction.message.id]["mode"] = "players"
+        view = PlayerManagerView()
+        embed = view.build_player_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
 
     @discord.ui.button(label="Back", style=discord.ButtonStyle.danger, emoji="↩️", custom_id="mc_btn_opt_back")
     async def btn_opt_back(self, interaction: discord.Interaction, button: discord.ui.Button):
