@@ -201,37 +201,47 @@ def get_stats_data():
     if api_stats and isinstance(api_stats, dict):
         status_val = api_stats.get("status", "offline")
         is_running = (status_val in ["online", "starting"])
-        online_p_raw = api_stats.get("online_players", [])
+        
+        # When offline, online players must strictly be empty
+        if not is_running:
+            online_p = []
+            players_count = 0
+        else:
+            online_p_raw = api_stats.get("online_players", [])
+            online_p = [p["name"] if isinstance(p, dict) else str(p) for p in online_p_raw]
+            players_count = len(online_p)
+
         all_p_raw = api_stats.get("all_players", [])
-        
-        online_p = [p["name"] if isinstance(p, dict) else str(p) for p in online_p_raw]
-        
-        # Build comprehensive players list (online + offline)
         players_map = {}
         for p in all_p_raw:
             if isinstance(p, dict) and "name" in p:
                 players_map[p["name"]] = p
             elif isinstance(p, str):
                 players_map[p] = {"name": p, "status": "offline", "is_op": False}
-        for p in online_p_raw:
-            if isinstance(p, dict) and "name" in p:
-                players_map[p["name"]] = p
-            elif isinstance(p, str):
-                players_map[p] = {"name": p, "status": "online", "is_op": False}
+        
+        # Only mark players online if server is actually running
+        if is_running:
+            for p in online_p:
+                if p in players_map:
+                    players_map[p]["status"] = "online"
+        else:
+            for p in players_map.values():
+                p["status"] = "offline"
 
         return {
             "running": is_running,
             "raw_status": status_val,
-            "ram_percent": api_stats.get("ram_percent", 0),
-            "ram_used_mb": api_stats.get("ram_used_mb", 0),
+            "ram_percent": api_stats.get("ram_percent", 0) if is_running else 0,
+            "ram_used_mb": api_stats.get("ram_used_mb", 0) if is_running else 0,
             "ram_allocated_mb": api_stats.get("ram_allocated_mb", 4096),
-            "cpu_percent": api_stats.get("cpu_percent", 0),
+            "cpu_percent": api_stats.get("cpu_percent", 0) if is_running else 0,
             "disk_percent": api_stats.get("disk_percent", 0),
             "online_players": online_p,
             "all_players_details": list(players_map.values()),
-            "players_count": len(online_p),
+            "players_count": players_count,
             "max_players": api_stats.get("max_players", 50)
         }
+
 
 
     # 2. Local fallback stats
@@ -1032,28 +1042,32 @@ async def apply_presence():
             pass
 
         raw_status = stats.get("raw_status", "online" if stats["running"] else "offline")
-        is_online = stats["running"] or socket_open
+        is_online = (stats["running"] and raw_status in ["online", "starting"]) or socket_open
+        
+        # When server is offline, count is strictly 0 and players list is empty
+        if not is_online or raw_status == "offline":
+            act = discord.Activity(type=discord.ActivityType.playing, name="Minecraft (Server Offline 🔴)")
+            await bot.change_presence(status=discord.Status.dnd, activity=act)
+            return
+
         players = stats.get('online_players', [])
         p_count = len(players) if players else stats.get('players_count', 0)
         p_max = stats.get('max_players', 50)
 
-        if is_online:
-            if raw_status == "starting":
-                act = discord.Activity(type=discord.ActivityType.playing, name="Minecraft (Booting... ⏳)")
-                await bot.change_presence(status=discord.Status.idle, activity=act)
-            elif p_count > 0:
-                if len(players) <= 2:
-                    p_str = ", ".join(players)
-                    act = discord.Activity(type=discord.ActivityType.playing, name=f"Minecraft ({p_count}/{p_max} Online: {p_str})")
-                else:
-                    act = discord.Activity(type=discord.ActivityType.playing, name=f"Minecraft ({p_count}/{p_max} Players Online)")
-                await bot.change_presence(status=discord.Status.online, activity=act)
+        if raw_status == "starting":
+            act = discord.Activity(type=discord.ActivityType.playing, name="Minecraft (Booting... ⏳)")
+            await bot.change_presence(status=discord.Status.idle, activity=act)
+        elif p_count > 0:
+            if len(players) <= 2:
+                p_str = ", ".join(players)
+                act = discord.Activity(type=discord.ActivityType.playing, name=f"Minecraft ({p_count}/{p_max} Online: {p_str})")
             else:
-                act = discord.Activity(type=discord.ActivityType.playing, name=f"Minecraft ({p_count}/{p_max} Online)")
-                await bot.change_presence(status=discord.Status.online, activity=act)
+                act = discord.Activity(type=discord.ActivityType.playing, name=f"Minecraft ({p_count}/{p_max} Players Online)")
+            await bot.change_presence(status=discord.Status.online, activity=act)
         else:
-            act = discord.Activity(type=discord.ActivityType.playing, name="Minecraft (Server Offline 🔴)")
-            await bot.change_presence(status=discord.Status.dnd, activity=act)
+            act = discord.Activity(type=discord.ActivityType.playing, name=f"Minecraft (0/{p_max} Online)")
+            await bot.change_presence(status=discord.Status.online, activity=act)
+
     except Exception as e:
         print(f"Presence error: {e}")
 
