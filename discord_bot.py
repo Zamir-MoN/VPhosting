@@ -393,21 +393,28 @@ def get_latest_logs(lines_count=20) -> str:
 def is_admin(interaction_or_ctx):
     user = interaction_or_ctx.user if hasattr(interaction_or_ctx, "user") else interaction_or_ctx.author
     if ADMIN_USER_IDS and user.id in ADMIN_USER_IDS:
-        return True
-    if hasattr(user, "guild_permissions") and user.guild_permissions.administrator:
-        return True
     if not ADMIN_USER_IDS and not hasattr(user, "guild_permissions"):
         return True
     return False
 
-def build_status_embed() -> discord.Embed:
+def build_status_embed(custom_status: str = None, custom_color: discord.Color = None, progress_bar: str = None) -> discord.Embed:
     stats = get_stats_data()
-    status_text = "🟢 **Online**" if stats["running"] else "🔴 **Offline**"
-    color = discord.Color.green() if stats["running"] else discord.Color.red()
+    
+    if custom_status:
+        status_text = custom_status
+        color = custom_color or discord.Color.gold()
+    else:
+        status_text = "🟢 **Online**" if stats["running"] else "🔴 **Offline**"
+        color = discord.Color.green() if stats["running"] else discord.Color.red()
+
+    desc = f"**Server Status:** {status_text}"
+    if progress_bar:
+        desc += f"\n{progress_bar}"
+    desc += "\n*(Live auto-refresh active)*"
 
     embed = discord.Embed(
         title="⚡ Valqore Minecraft Control Center",
-        description=f"**Server Status:** {status_text}\n*(Live auto-refresh active)*",
+        description=desc,
         color=color,
         timestamp=discord.utils.utcnow()
     )
@@ -432,35 +439,119 @@ class ServerControlView(discord.ui.View):
     async def btn_start(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ You do not have permission to manage this server.", ephemeral=True)
-        # Edit message immediately without sending popup notification
+        
+        # Frame 1: Initiating boot sequence animation
+        anim_embed = build_status_embed(
+            custom_status="🟡 **Starting Server...** ⏳",
+            custom_color=discord.Color.yellow(),
+            progress_bar="`[▰▰▱▱▱▱▱▱▱▱] 20% Preparing environment...`"
+        )
+        await interaction.response.edit_message(embed=anim_embed, view=self)
+        
         ok, msg = start_mc_server()
-        await interaction.response.edit_message(embed=build_status_embed(), view=self)
+        await asyncio.sleep(1.2)
+
+        # Frame 2: Allocating RAM & starting Java
+        anim_embed2 = build_status_embed(
+            custom_status="🟡 **Loading Minecraft Engine...** 🚀",
+            custom_color=discord.Color.gold(),
+            progress_bar="`[▰▰▰▰▰▰▱▱▱▱] 60% Spawning Java process...`"
+        )
+        try:
+            await interaction.message.edit(embed=anim_embed2, view=self)
+        except Exception:
+            pass
+        
+        await asyncio.sleep(1.2)
+
+        # Frame 3: Final live update
+        try:
+            await interaction.message.edit(embed=build_status_embed(), view=self)
+        except Exception:
+            pass
 
     @discord.ui.button(label="Stop", style=discord.ButtonStyle.danger, emoji="⏹️", custom_id="mc_btn_stop")
     async def btn_stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ You do not have permission to manage this server.", ephemeral=True)
-        ok, msg = stop_mc_server()
-        await interaction.response.edit_message(embed=build_status_embed(), view=self)
+        
+        # Frame 1: Saving world animation
+        anim_embed = build_status_embed(
+            custom_status="🟠 **Saving World & Stopping...** 💾",
+            custom_color=discord.Color.orange(),
+            progress_bar="`[▰▰▰▰▰▱▱▱▱▱] 50% Saving chunks & players...`"
+        )
+        await interaction.response.edit_message(embed=anim_embed, view=self)
+        
+        stop_mc_server()
+        await asyncio.sleep(1.2)
+
+        # Frame 2: Flushing memory & clean termination
+        anim_embed2 = build_status_embed(
+            custom_status="🔴 **Shutting Down...** 🛑",
+            custom_color=discord.Color.dark_red(),
+            progress_bar="`[▰▰▰▰▰▰▰▰▰▰] 100% Server stopped safely.`"
+        )
+        try:
+            await interaction.message.edit(embed=anim_embed2, view=self)
+        except Exception:
+            pass
+
+        await asyncio.sleep(1.0)
+        try:
+            await interaction.message.edit(embed=build_status_embed(), view=self)
+        except Exception:
+            pass
 
     @discord.ui.button(label="Restart", style=discord.ButtonStyle.primary, emoji="🔄", custom_id="mc_btn_restart")
     async def btn_restart(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_admin(interaction):
             return await interaction.response.send_message("❌ You do not have permission to manage this server.", ephemeral=True)
-        # Silent restart update
-        await interaction.response.edit_message(embed=build_status_embed(), view=self)
+        
+        # Step 1: Stopping animation
+        anim_embed = build_status_embed(
+            custom_status="🟠 **Restart Step 1/2: Stopping...** 🛑",
+            custom_color=discord.Color.orange(),
+            progress_bar="`[▰▰▰▰▱▱▱▱▱▱] 40% Saving and killing old instance...`"
+        )
+        await interaction.response.edit_message(embed=anim_embed, view=self)
+        
         stop_mc_server()
-        await asyncio.sleep(2)
+        await asyncio.sleep(1.5)
+
+        # Step 2: Booting animation
+        anim_embed2 = build_status_embed(
+            custom_status="🟡 **Restart Step 2/2: Rebooting Engine...** ⚡",
+            custom_color=discord.Color.yellow(),
+            progress_bar="`[▰▰▰▰▰▰▰▰▱▱] 80% Initializing new JVM session...`"
+        )
+        try:
+            await interaction.message.edit(embed=anim_embed2, view=self)
+        except Exception:
+            pass
+
         start_mc_server()
+        await asyncio.sleep(1.5)
+
+        # Step 3: Finished
         try:
             await interaction.message.edit(embed=build_status_embed(), view=self)
-        except:
+        except Exception:
             pass
 
     @discord.ui.button(label="Refresh", style=discord.ButtonStyle.secondary, emoji="🔃", custom_id="mc_btn_refresh")
     async def btn_refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Silent 1-click refresh without ephemeral popup or ping
-        await interaction.response.edit_message(embed=build_status_embed(), view=self)
+        # Frame 1: Quick pulse animation
+        pulse_embed = build_status_embed(
+            custom_status="🔄 **Fetching Latest Stats...**",
+            custom_color=discord.Color.blurple()
+        )
+        await interaction.response.edit_message(embed=pulse_embed, view=self)
+        await asyncio.sleep(0.4)
+        try:
+            await interaction.message.edit(embed=build_status_embed(), view=self)
+        except Exception:
+            pass
 
     @discord.ui.button(label="Live Logs", style=discord.ButtonStyle.secondary, emoji="📜", custom_id="mc_btn_logs")
     async def btn_logs(self, interaction: discord.Interaction, button: discord.ui.Button):
