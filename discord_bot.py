@@ -732,14 +732,10 @@ async def update_presence():
 # ==========================================
 # SLASH & PREFIX COMMANDS
 # ==========================================
-@bot.tree.command(name="panel", description="Post the live Minecraft Control Panel (Silently auto-refreshed in real-time).")
-async def cmd_panel(interaction: discord.Interaction):
-    if not is_admin(interaction):
-        return await interaction.response.send_message("❌ You need Admin permissions to post the control panel.", ephemeral=True)
-    await interaction.response.defer()
-
-    # Clean up and delete any previous panel message in this channel
-    channel_id = interaction.channel_id
+async def purge_old_panel_messages(channel):
+    """Deletes all previous Valqore panel messages in the channel from memory and channel history."""
+    # 1. Delete from in-memory tracking
+    channel_id = channel.id
     to_delete = []
     for msg_id, info in list(active_panel_messages.items()):
         c_id = info.get("channel_id") if isinstance(info, dict) else (info[0] if isinstance(info, (list, tuple)) else None)
@@ -747,14 +743,40 @@ async def cmd_panel(interaction: discord.Interaction):
         if c_id == channel_id:
             to_delete.append((msg_id, msg_obj))
     for msg_id, msg_obj in to_delete:
-        try: await msg_obj.delete()
+        try:
+            if msg_obj: await msg_obj.delete()
         except: pass
         active_panel_messages.pop(msg_id, None)
+
+    # 2. Comprehensive channel history scan (deletes any existing bot panel even after bot restarts)
+    try:
+        async for old_msg in channel.history(limit=50):
+            if old_msg.author.id == bot.user.id and old_msg.embeds:
+                for emb in old_msg.embeds:
+                    if emb.title and ("VALQORE" in emb.title or "MINECRAFT ENGINE" in emb.title or "LIVE MINECRAFT CONSOLE" in emb.title):
+                        try:
+                            await old_msg.delete()
+                            await asyncio.sleep(0.3)
+                        except: pass
+                        break
+    except Exception as e:
+        pass
+
+
+@bot.tree.command(name="panel", description="Post the live Minecraft Control Panel (Silently auto-refreshed in real-time).")
+async def cmd_panel(interaction: discord.Interaction):
+    if not is_admin(interaction):
+        return await interaction.response.send_message("❌ You need Admin permissions to post the control panel.", ephemeral=True)
+    await interaction.response.defer()
+
+    # Clean up any existing panel messages in the channel
+    if interaction.channel:
+        await purge_old_panel_messages(interaction.channel)
 
     view = ServerControlView()
     embed = build_status_embed()
     msg = await interaction.followup.send(embed=embed, view=view)
-    active_panel_messages[msg.id] = {"channel_id": channel_id, "msg": msg, "mode": "main"}
+    active_panel_messages[msg.id] = {"channel_id": interaction.channel_id, "msg": msg, "mode": "main"}
 
 
 @bot.command(name="panel")
@@ -762,18 +784,9 @@ async def p_panel(ctx):
     if not is_admin(ctx):
         return await ctx.send("❌ Admin permissions required.")
     
-    # Clean up and delete any previous panel message in this channel
-    channel_id = ctx.channel.id
-    to_delete = []
-    for msg_id, info in list(active_panel_messages.items()):
-        c_id = info.get("channel_id") if isinstance(info, dict) else (info[0] if isinstance(info, (list, tuple)) else None)
-        msg_obj = info.get("msg") if isinstance(info, dict) else (info[1] if isinstance(info, (list, tuple)) else info)
-        if c_id == channel_id:
-            to_delete.append((msg_id, msg_obj))
-    for msg_id, msg_obj in to_delete:
-        try: await msg_obj.delete()
-        except: pass
-        active_panel_messages.pop(msg_id, None)
+    # Clean up any existing panel messages in the channel
+    if ctx.channel:
+        await purge_old_panel_messages(ctx.channel)
 
     # Delete the user's trigger message if bot has manage_messages permission
     try: await ctx.message.delete()
@@ -782,7 +795,7 @@ async def p_panel(ctx):
     view = ServerControlView()
     embed = build_status_embed()
     msg = await ctx.send(embed=embed, view=view)
-    active_panel_messages[msg.id] = {"channel_id": channel_id, "msg": msg, "mode": "main"}
+    active_panel_messages[msg.id] = {"channel_id": ctx.channel.id, "msg": msg, "mode": "main"}
 
 @bot.tree.command(name="status", description="Check live RAM, CPU, disk usage, and online players.")
 async def cmd_status(interaction: discord.Interaction):
