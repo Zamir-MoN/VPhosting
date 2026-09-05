@@ -1485,7 +1485,6 @@ async def on_ready():
     bot.add_view(ServerControlView())
     bot.add_view(MoreOptionsView())
     bot.add_view(LiveConsoleView())
-    bot.add_view(PlayerManagerView())
     if not update_presence.is_running():
         update_presence.start()
     if not auto_refresh_panels.is_running():
