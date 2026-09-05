@@ -40,17 +40,22 @@ def get_server_metadata():
     if os.path.exists(LOG_PATH):
         try:
             with open(LOG_PATH, "r", encoding="utf-8", errors="ignore") as f:
-                header_lines = f.readlines()[:100]
+                header_lines = f.readlines()[:120]
                 for line in header_lines:
-                    # e.g. Starting minecraft server version 1.21.1
-                    if "Starting minecraft server version" in line:
-                        v_match = re.search(r"version\s+([0-9\.]+)", line, re.IGNORECASE)
+                    # Clean match for Minecraft version (e.g. "version 1.21.1" or "(MC: 1.21.1)")
+                    if "(MC:" in line:
+                        mc_match = re.search(r"\(MC:\s*([0-9]+\.[0-9]+(?:\.[0-9]+)?)\)", line, re.IGNORECASE)
+                        if mc_match:
+                            version = mc_match.group(1)
+                    elif "Starting minecraft server version" in line:
+                        v_match = re.search(r"version\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?)", line, re.IGNORECASE)
                         if v_match:
                             version = v_match.group(1)
-                    # e.g. This server is running Paper version ...
-                    if "This server is running" in line:
+                    
+                    # Software engine detection
+                    if "This server is running" in line or "Starting minecraft server" in line:
                         if "Purpur" in line: engine = "Purpur"
-                        elif "Paper" in line: engine = "PaperMC"
+                        elif "Paper" in line: engine = "Paper"
                         elif "Fabric" in line: engine = "Fabric"
                         elif "Forge" in line: engine = "Forge"
                         elif "Spigot" in line: engine = "Spigot"
@@ -64,8 +69,19 @@ def get_server_metadata():
             with open(version_json, "r") as vj:
                 data = json.load(vj)
                 if isinstance(data, dict) and "currentVersion" in data:
-                    version = data["currentVersion"]
+                    raw_ver = data["currentVersion"]
+                    # Extract clean standard semver like 1.21.1
+                    v_match = re.search(r"([0-9]+\.[0-9]+(?:\.[0-9]+)?)", raw_ver)
+                    if v_match:
+                        version = v_match.group(1)
+                    else:
+                        version = raw_ver
         except: pass
+
+    # Clean version string from any trailing dashes/build hashes
+    v_clean = re.search(r"([0-9]+\.[0-9]+(?:\.[0-9]+)?)", str(version))
+    if v_clean:
+        version = v_clean.group(1)
 
     return {"engine": engine, "version": version}
 

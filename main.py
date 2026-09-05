@@ -359,26 +359,35 @@ def get_stats():
         vps_ip = "play.valqore-arcane-smp.ryzn.pro"
 
     # Detect engine and version
-    detected_engine = "PaperMC"
+    detected_engine = "Purpur"
     detected_version = "1.21.1"
     log_file_path = os.path.join(MC_DIR, "logs", "latest.log")
     if os.path.exists(log_file_path):
         try:
             with open(log_file_path, "r", encoding="utf-8", errors="ignore") as f:
-                header_lines = f.readlines()[:100]
+                header_lines = f.readlines()[:120]
                 for line in header_lines:
-                    if "Starting minecraft server version" in line:
-                        v_match = re.search(r"version\s+([0-9\.]+)", line, re.IGNORECASE)
+                    if "(MC:" in line:
+                        mc_match = re.search(r"\(MC:\s*([0-9]+\.[0-9]+(?:\.[0-9]+)?)\)", line, re.IGNORECASE)
+                        if mc_match:
+                            detected_version = mc_match.group(1)
+                    elif "Starting minecraft server version" in line:
+                        v_match = re.search(r"version\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?)", line, re.IGNORECASE)
                         if v_match:
                             detected_version = v_match.group(1)
-                    if "This server is running" in line:
+                    if "This server is running" in line or "Starting minecraft server" in line:
                         if "Purpur" in line: detected_engine = "Purpur"
-                        elif "Paper" in line: detected_engine = "PaperMC"
+                        elif "Paper" in line: detected_engine = "Paper"
                         elif "Fabric" in line: detected_engine = "Fabric"
                         elif "Forge" in line: detected_engine = "Forge"
                         elif "Spigot" in line: detected_engine = "Spigot"
         except:
             pass
+
+    # Clean version string from any build hash artifacts
+    v_clean = re.search(r"([0-9]+\.[0-9]+(?:\.[0-9]+)?)", str(detected_version))
+    if v_clean:
+        detected_version = v_clean.group(1)
 
     detailed_status = get_server_detailed_state()
     
