@@ -304,25 +304,17 @@ async function fetchStats() {
         const barPing = document.getElementById('bar-ping');
         
         if (data.status === 'online') {
-            // Measure pure network ping
-            try {
-                const pStart = performance.now();
-                await fetch('/api/ping', { cache: 'no-store' });
-                const realPing = Math.max(1, Math.round(performance.now() - pStart));
-                
-                if (textPing) textPing.innerText = `${realPing} ms`;
-                if (subPing) {
-                    if (realPing < 60) subPing.innerText = "Ultra Low Latency";
-                    else if (realPing < 120) subPing.innerText = "Good Connection";
-                    else if (realPing < 200) subPing.innerText = "Moderate Ping";
-                    else subPing.innerText = "High Latency";
-                }
-                if (barPing) {
-                    const barPercent = Math.max(15, Math.min(100, 100 - (realPing / 3)));
-                    barPing.style.width = `${barPercent}%`;
-                }
-            } catch {
-                if (textPing) textPing.innerText = `${Math.round(latency)} ms`;
+            const displayPing = data.server_ping_ms && data.server_ping_ms > 0 ? data.server_ping_ms : Math.max(8, Math.round(latency));
+            if (textPing) textPing.innerText = `${displayPing} ms`;
+            if (subPing) {
+                if (displayPing < 50) subPing.innerText = "Ultra Low Latency";
+                else if (displayPing < 100) subPing.innerText = "Good Connection";
+                else if (displayPing < 180) subPing.innerText = "Moderate Ping";
+                else subPing.innerText = "High Latency";
+            }
+            if (barPing) {
+                const barPercent = Math.max(20, Math.min(100, 100 - (displayPing / 2.5)));
+                barPing.style.width = `${barPercent}%`;
             }
         } else {
             if (textPing) textPing.innerText = "-- ms";

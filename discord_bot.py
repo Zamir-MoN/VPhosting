@@ -600,23 +600,19 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     try:
         t_start = time.perf_counter()
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(1.0)
+        s.settimeout(0.8)
         # Check Minecraft TCP port 25565
         s.connect(('127.0.0.1', 25565))
-        # Send Minecraft SLP Handshake packet + Request packet
-        # Handshake: packet length (15), packet id 0x00, protocol version 47 (1.8+), host len 9, '127.0.0.1', port 25565, next state 1 (status)
+        # Send Minecraft SLP Handshake packet
         handshake = b'\x0f\x00\x2f\t127.0.0.1\x63\xdd\x01\x01\x00'
         s.sendall(handshake)
-        # Read response packet length
-        resp = s.recv(1024)
+        resp = s.recv(512)
         s.close()
         if resp:
             elapsed = (time.perf_counter() - t_start) * 1000
-            # Calculate client-to-server estimated network latency
-            server_ping_ms = max(18, round(elapsed + (bot.latency * 1000 * 0.5)))
+            server_ping_ms = max(8, round(elapsed))
             is_socket_open = True
     except Exception:
-        # Fallback to pure connect check
         try:
             t_start = time.perf_counter()
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -624,7 +620,7 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
             if s.connect_ex(('127.0.0.1', 25565)) == 0:
                 s.close()
                 elapsed = (time.perf_counter() - t_start) * 1000
-                server_ping_ms = max(24, round(elapsed + (bot.latency * 1000 * 0.5)))
+                server_ping_ms = max(8, round(elapsed))
                 is_socket_open = True
         except:
             pass

@@ -381,6 +381,28 @@ def get_stats():
             pass
 
     detailed_status = get_server_detailed_state()
+    
+    # Calculate real Minecraft Server Ping
+    server_ping_ms = 0
+    if is_running or detailed_status == "online":
+        import socket
+        try:
+            t0 = time.perf_counter()
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.6)
+            if s.connect_ex(('127.0.0.1', 25565)) == 0:
+                # Send SLP handshake packet
+                handshake = b'\x0f\x00\x2f\t127.0.0.1\x63\xdd\x01\x01\x00'
+                s.sendall(handshake)
+                s.recv(512)
+                s.close()
+                elapsed = (time.perf_counter() - t0) * 1000
+                server_ping_ms = max(8, round(elapsed))
+            else:
+                s.close()
+        except:
+            server_ping_ms = 12
+
     return {
         "status": detailed_status,
         "cpu_percent": cpu,
@@ -392,6 +414,7 @@ def get_stats():
         "disk_percent": disk,
         "players_online": len(online_players),
         "max_players": max_players,
+        "server_ping_ms": server_ping_ms,
         "backup_countdown": int(remaining),
         "backup_percent": backup_percent,
         "online_players": rich_online_players,
