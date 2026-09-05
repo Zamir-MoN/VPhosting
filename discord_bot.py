@@ -54,8 +54,7 @@ def get_server_metadata():
                     
                     # Software engine detection
                     if "This server is running" in line or "Starting minecraft server" in line:
-                        if "Purpur" in line: engine = "Purpur"
-                        elif "Paper" in line: engine = "Paper"
+                        if "Paper" in line or "Purpur" in line: engine = "PaperMC"
                         elif "Fabric" in line: engine = "Fabric"
                         elif "Forge" in line: engine = "Forge"
                         elif "Spigot" in line: engine = "Spigot"

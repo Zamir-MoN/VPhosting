@@ -359,7 +359,7 @@ def get_stats():
         vps_ip = "play.valqore-arcane-smp.ryzn.pro"
 
     # Detect engine and version
-    detected_engine = "Purpur"
+    detected_engine = "PaperMC"
     detected_version = "1.21.1"
     log_file_path = os.path.join(MC_DIR, "logs", "latest.log")
     if os.path.exists(log_file_path):
@@ -376,8 +376,7 @@ def get_stats():
                         if v_match:
                             detected_version = v_match.group(1)
                     if "This server is running" in line or "Starting minecraft server" in line:
-                        if "Purpur" in line: detected_engine = "Purpur"
-                        elif "Paper" in line: detected_engine = "Paper"
+                        if "Paper" in line or "Purpur" in line: detected_engine = "PaperMC"
                         elif "Fabric" in line: detected_engine = "Fabric"
                         elif "Forge" in line: detected_engine = "Forge"
                         elif "Spigot" in line: detected_engine = "Spigot"
