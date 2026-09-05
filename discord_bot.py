@@ -591,38 +591,47 @@ def build_status_embed(custom_status: str = None, custom_color: discord.Color = 
     ram_bar = make_mini_bar(stats['ram_percent'])
     cpu_bar = make_mini_bar(stats['cpu_percent'])
     
-    # Calculate real Minecraft Server Ping Latency
+    # Calculate real Live Minecraft Server Ping Latency via Public Domain / IP
     import socket
     server_ping_ms = 0
     is_socket_open = False
     
-    # Perform Minecraft Server List Ping (Handshake protocol)
-    try:
-        t_start = time.perf_counter()
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(0.8)
-        # Check Minecraft TCP port 25565
-        s.connect(('127.0.0.1', 25565))
-        # Send Minecraft SLP Handshake packet
-        handshake = b'\x0f\x00\x2f\t127.0.0.1\x63\xdd\x01\x01\x00'
-        s.sendall(handshake)
-        resp = s.recv(512)
-        s.close()
-        if resp:
-            elapsed = (time.perf_counter() - t_start) * 1000
-            server_ping_ms = max(8, round(elapsed))
-            is_socket_open = True
-    except Exception:
+    # 1. First attempt: Query live domain/external IP on Minecraft port 25565
+    target_host = "play.valqore-arcane-smp.ryzn.pro"
+    for host_to_ping in [target_host, "127.0.0.1"]:
         try:
             t_start = time.perf_counter()
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(0.5)
+            s.settimeout(1.5)
+            s.connect((host_to_ping, 25565))
+            
+            # Standard Minecraft SLP Handshake packet + Request Packet (0x00)
+            host_bytes = host_to_ping.encode('utf-8')
+            payload = b'\x00\x00' + bytes([len(host_bytes)]) + host_bytes + b'\x63\xdd\x01'
+            packet = bytes([len(payload)]) + payload + b'\x01\x00'
+            s.sendall(packet)
+            
+            resp = s.recv(1024)
+            s.close()
+            if resp:
+                elapsed = (time.perf_counter() - t_start) * 1000
+                server_ping_ms = max(10, round(elapsed))
+                is_socket_open = True
+                break
+        except Exception:
+            continue
+
+    if not is_socket_open:
+        try:
+            t_start = time.perf_counter()
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.8)
             if s.connect_ex(('127.0.0.1', 25565)) == 0:
                 s.close()
                 elapsed = (time.perf_counter() - t_start) * 1000
-                server_ping_ms = max(8, round(elapsed))
+                server_ping_ms = max(10, round(elapsed))
                 is_socket_open = True
-        except:
+        except Exception:
             pass
 
     if stats["running"] or is_socket_open:
