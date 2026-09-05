@@ -143,12 +143,12 @@ function switchTab(tabId, element) {
     if (tabId === 'players') fetchPlayers();
 }
 
-// // --- Dynamic IP Logic ---
-let SERVER_DIRECT_IP = window.location.hostname ? `${window.location.hostname}:25565` : "51.20.121.253:25565";
+// --- Dynamic IP Logic ---
+let SERVER_DIRECT_IP = "play.valqore-arcane-smp.ryzn.pro:25565";
 
 function initIpDisplay() {
     const el = document.getElementById('serverIpDisplay');
-    if (el && el.innerText.includes("valqore-arcane-smp")) {
+    if (el) {
         el.innerText = SERVER_DIRECT_IP;
     }
 }

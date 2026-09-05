@@ -25,23 +25,11 @@ ENV_FILE = os.path.join(BASE_DIR, ".env")
 PANEL_API_URL = "http://127.0.0.1:8090/api"
 
 def get_public_ip():
-    """Fetches the real public VPS IP address or custom domain."""
+    """Fetches the configured server IP address or custom domain."""
     custom_ip = os.getenv("SERVER_IP")
     if custom_ip:
         return custom_ip
-
-    # Fetch real VPS external IP
-    for service_url in ["https://api.ipify.org", "https://ifconfig.me/ip", "https://checkip.amazonaws.com"]:
-        try:
-            req = urllib.request.Request(service_url, headers={'User-Agent': 'Valqore/1.0'})
-            with urllib.request.urlopen(req, timeout=2) as r:
-                ip = r.read().decode('utf-8').strip()
-                if ip and len(ip.split('.')) == 4:
-                    return f"{ip}:25565"
-        except Exception:
-            pass
-
-    return "play.valqore.net:25565"
+    return "play.valqore-arcane-smp.ryzn.pro:25565"
 
 def get_server_metadata():
     """Auto-detects Minecraft Server Engine (Paper, Purpur, Fabric, Spigot, Vanilla) and Version."""

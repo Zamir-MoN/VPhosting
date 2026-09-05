@@ -351,22 +351,12 @@ def get_stats():
             "gamemode": default_gamemode
         })
 
-    # Detect real public IP of VPS or custom domain
-    vps_ip = None
+    # Detect configured public IP of VPS or custom domain
     custom_ip = os.getenv("SERVER_IP")
     if custom_ip:
         vps_ip = custom_ip
     else:
-        for ip_svc in ["https://api.ipify.org", "https://ifconfig.me/ip", "https://checkip.amazonaws.com"]:
-            try:
-                res = requests.get(ip_svc, timeout=1.5)
-                if res.status_code == 200 and len(res.text.strip().split('.')) == 4:
-                    vps_ip = f"{res.text.strip()}:25565"
-                    break
-            except:
-                pass
-    if not vps_ip:
-        vps_ip = "51.20.121.253:25565"
+        vps_ip = "play.valqore-arcane-smp.ryzn.pro:25565"
 
     # Detect engine and version
     detected_engine = "PaperMC"
