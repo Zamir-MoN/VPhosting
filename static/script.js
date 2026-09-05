@@ -144,7 +144,7 @@ function switchTab(tabId, element) {
 }
 
 // --- Dynamic IP Logic ---
-let SERVER_DIRECT_IP = "play.valqore-arcane-smp.ryzn.pro:25565";
+let SERVER_DIRECT_IP = "play.valqore-arcane-smp.ryzn.pro";
 
 function initIpDisplay() {
     const el = document.getElementById('serverIpDisplay');

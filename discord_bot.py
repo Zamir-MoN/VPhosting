@@ -29,7 +29,7 @@ def get_public_ip():
     custom_ip = os.getenv("SERVER_IP")
     if custom_ip:
         return custom_ip
-    return "play.valqore-arcane-smp.ryzn.pro:25565"
+    return "play.valqore-arcane-smp.ryzn.pro"
 
 def get_server_metadata():
     """Auto-detects Minecraft Server Engine (Paper, Purpur, Fabric, Spigot, Vanilla) and Version."""

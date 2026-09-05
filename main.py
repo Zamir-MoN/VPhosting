@@ -356,7 +356,7 @@ def get_stats():
     if custom_ip:
         vps_ip = custom_ip
     else:
-        vps_ip = "play.valqore-arcane-smp.ryzn.pro:25565"
+        vps_ip = "play.valqore-arcane-smp.ryzn.pro"
 
     # Detect engine and version
     detected_engine = "PaperMC"
